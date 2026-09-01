@@ -1,0 +1,1 @@
+function e(){let e=window.location.hostname,t=window.location.pathname;return!e.includes(`google.com`)||!t.includes(`/forms/`)?!1:[`.quantumWizForm`,`.docjsForm`,`[role="form"]`,`#viewform`].some(e=>document.querySelector(e)!==null)}chrome.runtime.onMessage.addListener((t,n,r)=>{t.type===`CHECK_FORM`&&r({type:`FORM_RESULT`,isGoogleForm:e()})});
