@@ -1,75 +1,67 @@
-# React + TypeScript + Vite
+# FormPass
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Chromium-based browser extension for Microsoft Edge that temporarily fills Google Forms using user-defined placeholders, allowing users to navigate multi-page forms without completing their real answers.
 
-Currently, two official plugins are available:
+## Current Development Status
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This extension is at **Milestone 1: Foundation**. The popup successfully renders a React-based UI that detects whether the active tab is a Google Form. Blank/white popup issue has been resolved.
 
-## React Compiler
+**Current capabilities:**
+- Extension loads in `edge://extensions/`
+- Popup visibly renders FormPass interface
+- Google Form detection active (URL pattern + DOM indicators)
+- React + TypeScript + Vite bundling functional
+- Manifest V3 compliant
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**Future milestones pending:** Placeholder configuration, field classification, multi-page navigation, preview before filling.
 
-## Expanding the ESLint configuration
+## Technology Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **TypeScript** for type-safe configuration and components
+- **React 19** for the popup UI
+- **Vite 8** as the build tool and development server
+- **Manifest V3** for the extension architecture
+- **chrome.storage.local** for local-first storage (future)
+- **ESLint** for code quality
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## Build
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+npm run build
 ```
+
+This runs `tsc -b && vite build`, compiling TypeScript and bundling assets into the `dist/` directory.
+
+## Loading into Microsoft Edge
+
+1. Build the extension: `npm run build`
+2. Open Edge and navigate to `edge://extensions/`
+3. Enable **Developer mode** (toggle switch)
+4. Click **Load unpacked**
+5. Select the `formpass-webextension` directory (or `dist/` folder)
+6. The FormPass extension should now appear in your extensions list
+
+## Testing the Current Milestone
+
+1. Load the extension in Edge as described above
+2. Click the FormPass extension icon
+3. The popup should render with the FormPass interface, showing:
+   - "Google Form detected" (if on a Google Forms page) or
+   - "Not a Google Form" (if on another page)
+4. The popup should NOT be a blank/white box
+
+## Current Limitations
+
+- Extension only detects Google Forms; no filling or placeholder substitution yet
+- Placeholder configuration (text, email, number, etc.) not implemented
+- Automatic form filling not implemented
+- Multi-page form navigation not implemented
+- Automatic submission not implemented (safety constraint)
+- CSS styles optimized for web pages, not extension popups (width may appear large)
+- Extension requires manual reload after source changes
