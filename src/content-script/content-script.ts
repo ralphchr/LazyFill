@@ -2,7 +2,10 @@ function isGoogleForm(): boolean {
   const hostname = window.location.hostname
   const pathname = window.location.pathname
 
-  if (!hostname.includes('google.com') || !pathname.includes('/forms/')) {
+  const isGoogleDomain = hostname.includes('google.com')
+  const isFormsPath = pathname.includes('/forms/') || hostname.includes('forms.google.com')
+
+  if (!isGoogleDomain || !isFormsPath) {
     return false
   }
 
