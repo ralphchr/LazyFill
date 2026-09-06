@@ -2,8 +2,8 @@ function isGoogleForm(): boolean {
   const hostname = window.location.hostname
   const pathname = window.location.pathname
 
-  const isGoogleDomain = hostname.includes('google.com')
-  const isFormsPath = pathname.includes('/forms/') || hostname.includes('forms.google.com')
+  const isGoogleDomain = hostname.includes('google.com') || hostname.includes('forms.gle')
+  const isFormsPath = pathname.includes('/forms/') || hostname.includes('forms.google.com') || hostname.includes('forms.gle')
 
   if (!isGoogleDomain || !isFormsPath) {
     return false
@@ -18,6 +18,7 @@ function isGoogleForm(): boolean {
 
   return formIndicators.some((selector) => document.querySelector(selector) !== null)
 }
+`)
 
 chrome.runtime.onMessage.addListener(
   (_message: { type: string }, _sender, sendResponse: (response: { type: string; isGoogleForm: boolean }) => void) => {
