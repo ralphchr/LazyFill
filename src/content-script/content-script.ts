@@ -18,7 +18,6 @@ function isGoogleForm(): boolean {
 
   return formIndicators.some((selector) => document.querySelector(selector) !== null)
 }
-`)
 
 chrome.runtime.onMessage.addListener(
   (_message: { type: string }, _sender, sendResponse: (response: { type: string; isGoogleForm: boolean }) => void) => {
