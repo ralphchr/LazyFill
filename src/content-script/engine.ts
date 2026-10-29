@@ -1,5 +1,7 @@
 import { DEFAULT_SETTINGS } from '../shared/types.ts'
-import type { FieldKind, FieldPreview, ScanResult, Settings } from '../shared/types.ts'
+import type { AutomationStatus, BlankFileType, FieldKind, FieldPreview, ScanResult, Settings } from '../shared/types.ts'
+import { dateParts, placeholder, profileKey } from '../shared/profile.ts'
+import { makeBlankFile, randomChoice } from '../shared/files.ts'
 import { readOutline } from './outline.ts'
 
 type TextControl = HTMLInputElement | HTMLTextAreaElement
@@ -47,6 +49,7 @@ function choiceLabel(element: HTMLElement): string {
 
 function read(target: Target): string {
   const { element, preview, controls } = target
+  if (preview.kind === 'file') return JSON.stringify(Array.from((element as HTMLInputElement).files || []).map(file => [file.name, file.size, file.type, file.lastModified]))
   if (preview.kind === 'choice' || preview.kind === 'checkbox') return JSON.stringify(controls.filter(selected).map(choiceLabel).sort())
   if (preview.kind === 'dropdown') {
     if (element instanceof HTMLSelectElement) return element.value
@@ -57,14 +60,14 @@ function read(target: Target): string {
 
 function blank(target: Target): boolean {
   const value = read(target)
-  return target.preview.kind === 'choice' || target.preview.kind === 'checkbox' ? value === '[]' : value === ''
+  return ['choice', 'checkbox', 'file'].includes(target.preview.kind) ? value === '[]' : value === ''
 }
 
 export function isRespondentForm(doc: Document, href: string): boolean {
   const url = new URL(href)
   return url.protocol === 'https:' && url.hostname === 'docs.google.com'
     && /^\/forms\/(?:u\/\d+\/)?d\/(?:e\/)?[^/]+\/(?:viewform|formResponse)\/?$/.test(url.pathname)
-    && !!doc.querySelector('form') && !!doc.querySelector('[role="listitem"]')
+    && !!doc.querySelector('form') && (!!doc.querySelector('[role="listitem"]') || (!!doc.querySelector('[jsname="OCpkoe"], [jsname="M2UYVd"]') && readOutline(doc).length > 0))
 }
 
 export class FormEngine {
@@ -75,6 +78,8 @@ export class FormEngine {
   private doc: Document
   private href: string
   private storage?: Storage
+  private automation?: AutomationStatus
+  private onStop?: () => void
 
   constructor(doc: Document, href: string, storage?: Storage) {
     this.doc = doc
@@ -115,8 +120,9 @@ export class FormEngine {
         if (kind === 'manual') { preview.status = 'manual'; preview.note ||= 'Complete this question manually.' }
         else if (!blank(target)) preview.status = 'answered'
         else if (!required && !settings.includeOptional) preview.status = 'optional'
-        if (options) preview.value = options[0] || ''
-        else if (kind !== 'manual' && kind !== 'choice' && kind !== 'checkbox' && kind !== 'dropdown') preview.value = settings[kind]
+        if (options) preview.value = randomChoice(options) || ''
+        else if (kind === 'file') preview.value = settings.blankFileType
+        else if (kind !== 'manual') preview.value = placeholder(title, kind, settings)
         if (kind !== 'manual') {
           const record = this.temporary.get(id)
           if (record && read(target) !== record.value) this.temporary.delete(id)
@@ -125,23 +131,57 @@ export class FormEngine {
       }
 
       if (metadata?.type === 'File upload' || question.querySelector('input[type="file"]') || /\bAdd file\b/i.test(question.textContent || '')) {
-        add(question, 'manual', [], undefined, '', 'File uploads are manual. Use All sections to inspect later questions without uploading.')
+        const input = question.querySelector<HTMLInputElement>('input[type="file"]')
+        if (input && enabled(input) && settings.attachFiles && typeof DataTransfer !== 'undefined' && makeBlankFile(settings.blankFileType, input.accept)) add(input, 'file', [], undefined, 'file', 'A blank file will be attached automatically.')
+        else add(question, 'manual', [], undefined, '', 'Use a downloaded blank file in the upload picker, then Continue. View all questions lets you read ahead without uploading.')
         continue
       }
-      if (metadata?.type === 'Grid' || question.querySelectorAll('[role="radiogroup"]').length > 1 || metadata?.type === 'Date' || metadata?.type === 'Time') {
+      const gridRows = [...question.querySelectorAll<HTMLElement>('[role="radiogroup"], [role="row"], [role="group"]')].filter(row => !!row.querySelector('[role="radio"], [role="checkbox"]') && !row.querySelector('[role="radiogroup"], [role="row"], [role="group"]'))
+      if ((metadata?.type === 'Grid' || gridRows.length > 1) && gridRows.length) {
+        const used = new Set([...question.querySelectorAll<HTMLElement>('[role="radio"], [role="checkbox"]')].filter(selected).map(choiceLabel))
+        for (const [rowIndex, row] of gridRows.entries()) {
+          const controls = [...row.querySelectorAll<HTMLElement>('[role="radio"], [role="checkbox"]')].filter(control => enabled(control) && visible(control))
+          if (!controls.length) continue
+          const kind = controls[0].getAttribute('role') === 'checkbox' ? 'checkbox' : 'choice'
+          const options = controls.map(choiceLabel).filter(Boolean)
+          add(controls[0], kind, controls, options, `row:${rowIndex}`)
+          const target = targets[targets.length - 1]
+          target.question = row // Never reset an entire grid while clearing one tracked row.
+          target.preview.title = `${title} — ${row.getAttribute('aria-label') || metadata?.rows[rowIndex] || `Row ${rowIndex + 1}`}`
+          const unused = options.filter(option => !used.has(option))
+          target.preview.value = randomChoice(unused.length ? unused : options) || ''
+          if (target.preview.status === 'ready') used.add(target.preview.value)
+        }
+        continue
+      }
+      if (metadata?.type === 'Grid' || metadata?.type === 'Time') {
         add(question, 'manual', [], undefined, '', 'Use the form to answer this date, time, or grid question.')
         continue
       }
       // "Other" text boxes belong to a choice; filling them can silently select it.
       const hasChoices = !!question.querySelector('[role="radio"], [role="checkbox"], input[type="radio"], input[type="checkbox"]')
       const textControls = hasChoices ? [] : [...question.querySelectorAll<TextControl>('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="file"]), textarea')].filter(element => visible(element) && enabled(element))
+      if (textControls.length > 1 && (metadata?.type === 'Date' || profileKey(title) === 'birthday')) {
+        const parts = dateParts(settings.birthday)
+        const identified = textControls.map(element => {
+          const part = clean(`${element.getAttribute('aria-label') || ''} ${element.getAttribute('placeholder') || ''}`).toLowerCase()
+          return { element, key: /\byear\b|\byyyy\b/.test(part) ? 'year' : /\bmonth\b|\bmm\b/.test(part) ? 'month' : /\bday\b|\bdd\b/.test(part) ? 'day' : '' }
+        })
+        if (identified.every(item => item.key) && new Set(identified.map(item => item.key)).size === identified.length) {
+          for (const { element, key } of identified) {
+            add(element, 'number', [], undefined, `date:${key}`)
+            targets[targets.length - 1].preview.value = parts?.[key as 'year' | 'month' | 'day'] || ''
+          }
+          continue
+        }
+      }
       if (textControls.length > 1) {
         add(question, 'manual', [], undefined, '', 'This question has multiple input parts. Complete it manually.')
         continue
       }
       for (const [controlIndex, element] of textControls.entries()) {
         const type = element instanceof HTMLTextAreaElement ? 'paragraph' : element.type
-        let kind: FieldKind = type === 'paragraph' ? 'paragraph' : type === 'email' || type === 'number' || type === 'url' ? type : type === 'text' || type === '' ? 'text' : 'manual'
+        let kind: FieldKind = type === 'paragraph' ? 'paragraph' : type === 'email' || type === 'number' || type === 'url' || type === 'date' ? type : type === 'text' || type === '' ? 'text' : 'manual'
         if (kind === 'text' && /\be-?mail\b/i.test(title)) kind = 'email'
         else if (kind === 'text' && /^(numeric|decimal)$/.test(element.inputMode)) kind = 'number'
         else if (kind === 'text' && /\b(website|web ?site|url)\b/i.test(title)) kind = 'url'
@@ -201,16 +241,27 @@ export class FormEngine {
     return selected(control)
   }
 
-  async fill(settings: Settings, values: { id: string; value: string }[]): Promise<string> {
+  async fill(settings: Settings, values: { id: string; value: string }[], shouldContinue = () => true): Promise<string> {
     if (!isRespondentForm(this.doc, this.href)) throw new Error('Open a Google Form respondent page first.')
+    this.settings = settings
     const targets = this.targets(settings)
     let filled = 0
     let skipped = 0
     for (const { id, value } of values) {
+      if (!shouldContinue()) break
       const target = targets.find(item => item.preview.id === id)
       if (!target || !target.element.isConnected || target.preview.status !== 'ready' || !blank(target) || !value.trim()) { skipped++; continue }
       const before = read(target)
-      if (target.preview.options) {
+      if (target.preview.kind === 'file') {
+        const input = target.element as HTMLInputElement
+        const file = settings.attachFiles && ['random', 'png', 'pdf', 'txt'].includes(value) ? makeBlankFile(value as BlankFileType, input.accept) : null
+        if (!file || typeof DataTransfer === 'undefined') { skipped++; continue }
+        const transfer = new DataTransfer()
+        transfer.items.add(file)
+        input.files = transfer.files
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      } else if (target.preview.options) {
         if (!target.preview.options.includes(value) || !await this.choose(target, value)) { skipped++; continue }
       } else {
         const element = target.element as TextControl
@@ -223,7 +274,7 @@ export class FormEngine {
       filled++
       this.persist()
     }
-    return `${filled} temporary answer${filled === 1 ? '' : 's'} filled.${skipped ? ` ${skipped} skipped; review validation or refresh the scan.` : ''} Use the form’s Next button when ready.`
+    return `${filled} temporary answer${filled === 1 ? '' : 's'} filled.${skipped ? ` ${skipped} skipped; review the form’s validation messages.` : ''}`
   }
 
   async clear(): Promise<string> {
@@ -257,7 +308,7 @@ export class FormEngine {
   }
 
   private updateBanner() {
-    if (!this.temporary.size) { this.banner?.remove(); this.banner = null; return }
+    if (!this.temporary.size && this.automation?.status !== 'running') { this.banner?.remove(); this.banner = null; return }
     if (!this.banner?.isConnected) {
       this.banner = this.doc.createElement('aside')
       this.banner.id = 'formpass-notice'
@@ -265,7 +316,39 @@ export class FormEngine {
       this.banner.style.cssText = 'position:sticky;top:0;z-index:2147483647;padding:12px 20px;background:#172e29;color:#edfff8;font:14px/1.5 system-ui;text-align:center;box-shadow:0 2px 12px #0002'
       this.doc.body.prepend(this.banner)
     }
-    this.banner.textContent = `FormPass · ${this.temporary.size} temporary answer(s). Replace or clear them before submitting. Google may autosave these answers.`
+    const text = this.doc.createElement('span')
+    text.textContent = `FormPass · ${this.automation?.status === 'running' || this.automation?.status === 'paused' ? this.automation.message : `${this.temporary.size} temporary answer(s). Replace or clear before submitting. Google may autosave.`}`
+    this.banner.replaceChildren(text)
+    if (this.automation?.status === 'running' && this.onStop) {
+      const stop = this.doc.createElement('button')
+      stop.type = 'button'
+      stop.textContent = 'Stop'
+      stop.style.cssText = 'margin-left:14px;padding:4px 12px;border:1px solid #b9d1c3;border-radius:5px;background:transparent;color:inherit;cursor:pointer;font:inherit'
+      stop.addEventListener('click', this.onStop)
+      this.banner.append(stop)
+    }
+  }
+
+  setAutomation(status: AutomationStatus, onStop: () => void) {
+    this.automation = status
+    this.onStop = onStop
+    this.updateBanner()
+  }
+
+  pageFingerprint(): string {
+    return hash(JSON.stringify([this.targets(this.settings).map(target => target.preview.id), [...this.doc.querySelectorAll('[role="heading"]')].map(heading => clean(heading.textContent))]))
+  }
+
+  navigation(): { next: HTMLElement | null; final: boolean } {
+    const buttons = [...this.doc.querySelectorAll<HTMLElement>('button, [role="button"]')].filter(button => visible(button) && enabled(button))
+    const isSubmit = (button: HTMLElement) => button.getAttribute('jsname') === 'M2UYVd' || /^(submit|send)$/i.test(clean(button.textContent))
+    const next = buttons.find(button => !isSubmit(button) && (button.getAttribute('jsname') === 'OCpkoe' || (!button.matches('button[type="submit"]') && /^(next|continue|susunod)$/i.test(clean(button.textContent))))) || null
+    return { next, final: !next && buttons.some(isSubmit) }
+  }
+
+  validationProblem(): string {
+    const invalid = [...this.doc.querySelectorAll<HTMLElement>('[aria-invalid="true"], input:invalid, textarea:invalid, select:invalid')].find(element => enabled(element) && visible(element))
+    return invalid ? clean(invalid.closest('[role="listitem"]')?.querySelector('[role="heading"]')?.textContent) || 'A required answer' : ''
   }
 
   installGuards() {

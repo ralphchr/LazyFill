@@ -33,13 +33,14 @@ test('previews required blanks and preserves existing, hidden and optional answe
     question('Notes', '<textarea></textarea>') +
     '<div hidden>' + question('Invisible', '<input required>') + '</div>',
   )
-  const scan = engine.scan(DEFAULT_SETTINGS)
+  const settings = { ...DEFAULT_SETTINGS, includeOptional: false }
+  const scan = engine.scan(settings)
   assert.deepEqual(scan.fields.map(field => field.status), ['ready', 'answered', 'optional'])
-  const result = await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  const result = await engine.fill(settings, scan.fields.map(field => ({ id: field.id, value: field.value })))
   assert.match(result, /1 temporary answer filled/)
   assert.equal(doc.querySelector<HTMLInputElement>('input[type=email]')?.value, 'real@example.com')
   assert.equal(doc.querySelector('textarea')?.value, '')
-  assert.equal(doc.querySelector<HTMLInputElement>('input[name="entry.1"]')?.value, DEFAULT_SETTINGS.text)
+  assert.equal(doc.querySelector<HTMLInputElement>('input[name="entry.1"]')?.value, DEFAULT_SETTINGS.name)
   assert.equal(engine.scan().temporaryCount, 1)
 })
 
@@ -65,13 +66,13 @@ test('supports native and Google-style choices and never changes an existing sel
   doc.querySelector('button')!.addEventListener('click', () => radios.forEach(radio => radio.setAttribute('aria-checked', 'false')))
   const scan = engine.scan()
   await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))
-  assert.equal(radios[0].getAttribute('aria-checked'), 'true')
+  assert.equal(radios.find(radio => radio.getAttribute('aria-label') === scan.fields[0].value)!.getAttribute('aria-checked'), 'true')
   assert.equal(doc.querySelector<HTMLInputElement>('input[name=taken]')!.checked, true)
   assert.equal(doc.querySelector<HTMLInputElement>('input[type=checkbox]')!.checked, true)
   assert.equal(doc.querySelector('select')!.value, 'a')
   assert.equal(engine.scan().temporaryCount, 3)
   await engine.clear()
-  assert.equal(radios[0].getAttribute('aria-checked'), 'false')
+  assert.ok(radios.every(radio => radio.getAttribute('aria-checked') === 'false'))
   assert.equal(doc.querySelector<HTMLInputElement>('input[name=taken]')!.checked, true)
   assert.equal(doc.querySelector('select')!.value, '')
   assert.equal(engine.scan().temporaryCount, 0)
@@ -114,8 +115,8 @@ test('supports optional filling only when explicitly enabled and skips empty ove
   assert.equal(doc.querySelector('textarea')!.value, 'Preview')
 })
 
-test('uploads and date/time questions stay manual; unsupported input types are untouched', async () => {
-  const { doc, engine } = setup(question('Attachment *', '<input type="file" required>') + question('Date *', '<input type="date" required>') + question('Password *', '<input type="password" required>'))
+test('uploads, time and unsupported input types are untouched', async () => {
+  const { doc, engine } = setup(question('Attachment *', '<input type="file" required>') + question('Time *', '<input type="time" required>') + question('Password *', '<input type="password" required>'))
   const scan = engine.scan()
   assert.deepEqual(scan.fields.map(field => field.status), ['manual', 'manual', 'manual'])
   await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: 'unsafe' })))
