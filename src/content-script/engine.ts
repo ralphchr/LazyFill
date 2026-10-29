@@ -4,6 +4,7 @@ import { dateParts, placeholder, profileKey } from '../shared/profile.ts'
 import { makeBlankFile, randomChoice } from '../shared/files.ts'
 import { readOutline } from './outline.ts'
 import { validatedPlaceholder } from '../shared/validation.ts'
+import { googleUploadValue, pickerDocuments, questionShowsFile, uploadThroughPicker } from './uploads.ts'
 
 type TextControl = HTMLInputElement | HTMLTextAreaElement
 interface Target {
@@ -11,8 +12,9 @@ interface Target {
   question: HTMLElement
   element: HTMLElement
   controls: HTMLElement[]
+  entryIds?: string[]
 }
-interface Temporary { id: string; value: string }
+interface Temporary { id: string; value: string; pending?: boolean; uploadName?: string }
 
 const clean = (value: string | null | undefined) => (value || '').replace(/\s+/g, ' ').trim()
 const label = (element: HTMLElement) => clean(element.getAttribute('data-value') || element.getAttribute('aria-label') || element.textContent)
@@ -50,7 +52,7 @@ function choiceLabel(element: HTMLElement): string {
 
 function read(target: Target): string {
   const { element, preview, controls } = target
-  if (preview.kind === 'file') return JSON.stringify(Array.from((element as HTMLInputElement).files || []).map(file => [file.name, file.size, file.type, file.lastModified]))
+  if (preview.kind === 'file') return element instanceof HTMLInputElement ? JSON.stringify(Array.from(element.files || []).map(file => [file.name, file.size, file.type, file.lastModified])) : googleUploadValue(target.question, target.entryIds)
   if (preview.kind === 'choice' || preview.kind === 'checkbox') return JSON.stringify(controls.filter(selected).map(choiceLabel).sort())
   if (preview.kind === 'dropdown') {
     if (element instanceof HTMLSelectElement) return element.value
@@ -117,7 +119,7 @@ export class FormEngine {
       const add = (element: HTMLElement, kind: FieldKind, controls: HTMLElement[] = [], options?: string[], suffix = '', note?: string) => {
         const id = `${questionId}:${suffix || kind}`
         const preview: FieldPreview = { id, title, kind, required, value: '', options, status: 'ready', note }
-        const target: Target = { preview, question, element, controls }
+        const target: Target = { preview, question, element, controls, entryIds: metadata?.entryIds }
         if (kind === 'manual') { preview.status = 'manual'; preview.note ||= 'Complete this question manually.' }
         else if (!blank(target)) preview.status = 'answered'
         else if (!required && !settings.includeOptional) preview.status = 'optional'
@@ -126,15 +128,27 @@ export class FormEngine {
         else if (kind !== 'manual') preview.value = placeholder(title, kind, settings)
         if (kind !== 'manual') {
           const record = this.temporary.get(id)
-          if (record && read(target) !== record.value) this.temporary.delete(id)
+          if (record?.pending) {
+            const current = read(target)
+            if (current !== '[]') {
+              if (record.uploadName && !questionShowsFile(question, record.uploadName)) this.temporary.delete(id)
+              else { record.pending = false; record.value = current }
+            }
+          } else if (record && read(target) !== record.value) this.temporary.delete(id)
         }
         targets.push(target)
       }
 
       if (metadata?.type === 'File upload' || question.querySelector('input[type="file"]') || /\bAdd file\b/i.test(question.textContent || '')) {
         const input = question.querySelector<HTMLInputElement>('input[type="file"]')
-        if (input && enabled(input) && settings.attachFiles && typeof DataTransfer !== 'undefined' && makeBlankFile(settings.blankFileType, input.accept)) add(input, 'file', [], undefined, 'file', 'A blank file will be attached automatically.')
-        else add(question, 'manual', [], undefined, '', 'Use a downloaded blank file in the upload picker, then Continue. View all questions lets you read ahead without uploading.')
+        const button = [...question.querySelectorAll<HTMLElement>('button, [role="button"]')].find(button => enabled(button) && visible(button) && (/^add file$/i.test(label(button)) || button.getAttribute('jsname') === 'O5yIud'))
+        add(input || button || question, 'file', [], undefined, 'file', 'A blank file will be attached using Google’s upload picker.')
+        const target = targets[targets.length - 1]
+        const canAttach = settings.attachFiles && typeof DataTransfer !== 'undefined' && (input ? enabled(input) && !!makeBlankFile(settings.blankFileType, input.accept) : !!button)
+        if (target.preview.status === 'ready' && !canAttach) {
+          target.preview.status = 'manual'
+          target.preview.note = 'Upload a blank file manually, or enable automatic blank attachments. Downloads are under Questions & blank files.'
+        }
         continue
       }
       const gridRows = [...question.querySelectorAll<HTMLElement>('[role="radiogroup"], [role="row"], [role="group"]')].filter(row => !!row.querySelector('[role="radio"], [role="checkbox"]') && !row.querySelector('[role="radiogroup"], [role="row"], [role="group"]'))
@@ -251,8 +265,9 @@ export class FormEngine {
     return selected(control)
   }
 
-  async fill(settings: Settings, values: { id: string; value: string }[], shouldContinue = () => true): Promise<string> {
+  async fill(settings: Settings, values: { id: string; value: string }[], shouldContinue = () => true, progress?: (message: string) => void): Promise<string> {
     if (!isRespondentForm(this.doc, this.href)) throw new Error('Open a Google Form respondent page first.')
+    if (pickerDocuments(this.doc).length) throw new Error('Finish or close the open Google upload window, then Continue so FormPass can open the correct question’s picker.')
     this.settings = settings
     const targets = this.targets(settings)
     let filled = 0
@@ -263,14 +278,24 @@ export class FormEngine {
       if (!target || !target.element.isConnected || target.preview.status !== 'ready' || !blank(target) || !value.trim()) { skipped++; continue }
       const before = read(target)
       if (target.preview.kind === 'file') {
-        const input = target.element as HTMLInputElement
-        const file = settings.attachFiles && ['random', 'png', 'pdf', 'txt'].includes(value) ? makeBlankFile(value as BlankFileType, input.accept) : null
-        if (!file || typeof DataTransfer === 'undefined') { skipped++; continue }
-        const transfer = new DataTransfer()
-        transfer.items.add(file)
-        input.files = transfer.files
-        input.dispatchEvent(new Event('input', { bubbles: true }))
-        input.dispatchEvent(new Event('change', { bubbles: true }))
+        const pending = this.temporary.get(id)
+        if (pending?.pending) throw new Error('A previous blank upload is unconfirmed. Finish it, or close the picker and use Clear this page to reset the attempt before continuing.')
+        if (!(target.element instanceof HTMLInputElement)) {
+          const result = await uploadThroughPicker({ doc: this.doc, question: target.question, button: target.element, kind: settings.blankFileType, entryIds: target.entryIds, active: shouldContinue, progress,
+            prepared: file => { this.temporary.set(id, { id, value: before, pending: true, uploadName: file.name }); this.persist() },
+          })
+          if (result.cancelled) break
+          if (!result.ok) throw new Error(result.message || 'Google did not confirm the file upload.')
+        } else {
+          const input = target.element as HTMLInputElement
+          const file = settings.attachFiles && ['random', 'png', 'pdf', 'txt'].includes(value) ? makeBlankFile(value as BlankFileType, input.accept) : null
+          if (!file || typeof DataTransfer === 'undefined') { skipped++; continue }
+          const transfer = new DataTransfer()
+          transfer.items.add(file)
+          input.files = transfer.files
+          input.dispatchEvent(new Event('input', { bubbles: true }))
+          input.dispatchEvent(new Event('change', { bubbles: true }))
+        }
       } else if (target.preview.options) {
         if (!target.preview.options.includes(value) || !await this.choose(target, value)) { skipped++; continue }
       } else {
@@ -280,7 +305,7 @@ export class FormEngine {
       }
       const after = read(target)
       if (after === before) { skipped++; continue }
-      this.temporary.set(id, { id, value: after })
+      this.temporary.set(id, { id, value: after, ...(this.temporary.get(id)?.uploadName ? { uploadName: this.temporary.get(id)!.uploadName } : {}) })
       filled++
       this.persist()
     }
@@ -288,13 +313,22 @@ export class FormEngine {
   }
 
   async clear(): Promise<string> {
+    if (pickerDocuments(this.doc).length) throw new Error('Finish or close Google’s upload window before clearing temporary answers.')
     const targets = this.targets(this.settings)
     let cleared = 0
     for (const target of targets) {
       const record = this.temporary.get(target.preview.id)
       if (!record || read(target) !== record.value) continue
+      if (record.pending) {
+        if (!pickerDocuments(this.doc).length && blank(target)) { this.temporary.delete(record.id); cleared++ }
+        continue
+      }
       const kind = target.preview.kind
-      if (kind === 'checkbox') target.controls.filter(selected).forEach(control => control.click())
+      if (kind === 'file' && !(target.element instanceof HTMLInputElement)) {
+        if (pickerDocuments(this.doc).length) continue
+        const remove = [...target.question.querySelectorAll<HTMLElement>('button, [role="button"]')].find(button => /^remove(?:\b|$)/i.test(label(button)))
+        remove?.click()
+      } else if (kind === 'checkbox') target.controls.filter(selected).forEach(control => control.click())
       else if (kind === 'choice') {
         const native = target.controls.every(control => control instanceof HTMLInputElement)
         if (native) target.controls.forEach(control => { (control as HTMLInputElement).checked = false; control.dispatchEvent(new Event('change', { bubbles: true })) })

@@ -92,5 +92,5 @@ test('attaches an accepted blank file through file-input events and preserves ex
   assert.equal(attached[1][0].name, 'final.pdf')
   assert.equal(changed, 1)
   assert.equal(engine.scan().temporaryCount, 1)
-  assert.equal(engine.scan({ ...DEFAULT_SETTINGS, attachFiles: false }).fields[0].status, 'manual')
+  assert.equal(engine.scan({ ...DEFAULT_SETTINGS, attachFiles: false }).fields[0].status, 'answered')
 })

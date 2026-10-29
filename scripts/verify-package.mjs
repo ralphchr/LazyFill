@@ -89,4 +89,42 @@ const reopened = openPopup()
 await until(() => reopened.window.document.querySelector('.run-status.complete'), 'Reopened popup must recover completed progress')
 reopened.window.close()
 form.window.close()
-console.log('Packaged extension passed: compact popup, page fill/clear, outline, multi-section run after popup closure, and no submission.')
+// Exercise the actual bundle against a separate Google-style picker frame.
+const uploadForm = new JSDOM('<form><div role="listitem" data-item-id="resume"><div role="heading">Resume *</div><button type="button">Add file</button></div><input type="hidden" name="entry.123"><button type="button" jsname="M2UYVd">Submit</button></form>', { url: 'https://docs.google.com/forms/d/e/picker-package-test/viewform', runScripts: 'outside-only' })
+uploadForm.window.TextEncoder = TextEncoder
+uploadForm.window.DataTransfer = class { files = []; items = { add: file => this.files.push(file) } }
+const uploadSchema = uploadForm.window.document.createElement('script')
+uploadSchema.textContent = `var FB_PUBLIC_LOAD_DATA_ = ${JSON.stringify([null, [null, [[1, 'Resume', null, 13, [[123, null, 1]]]]]])};`
+uploadForm.window.document.body.append(uploadSchema)
+let uploadListener
+uploadForm.window.chrome = { storage, runtime: { id: 'package-test', onMessage: { addListener(callback) { uploadListener = callback } } } }
+let uploadedFile
+let uploadSubmits = 0
+uploadForm.window.document.querySelector('[jsname=M2UYVd]').addEventListener('click', () => uploadSubmits++)
+uploadForm.window.document.querySelector('[role=listitem] button').addEventListener('click', () => {
+  const frame = uploadForm.window.document.createElement('iframe')
+  frame.src = 'https://docs.google.com/picker?hostId=file-upload&selectableMimeTypes=application%2Fpdf'
+  uploadForm.window.document.body.append(frame)
+  const picker = frame.contentDocument
+  picker.open()
+  picker.write('<html><body><input type="file" accept="application/pdf"></body></html>')
+  picker.close()
+  const input = picker.querySelector('input')
+  let files = []
+  Object.defineProperty(input, 'files', { get: () => files, set: value => { files = [...value] } })
+  input.addEventListener('change', () => {
+    uploadedFile = files[0]
+    uploadForm.window.document.querySelector('[name="entry.123"]').value = '["uploaded-drive-id"]'
+    uploadForm.window.document.querySelector('[role=listitem]').append(uploadedFile.name)
+    frame.hidden = true
+  })
+})
+uploadForm.window.eval(await readFile('dist/content.js', 'utf8'))
+const uploadRequest = message => new Promise(resolve => uploadListener(message, { id: 'package-test' }, resolve))
+await uploadRequest({ type: 'START', settings: stored.settings })
+await until(async () => (await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.automation.status === 'complete', 'Packaged runner must complete a confirmed Google picker upload')
+assert.equal(uploadedFile.type, 'application/pdf')
+assert.equal(uploadSubmits, 0)
+assert.equal((await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.temporaryCount, 1)
+uploadForm.window.close()
+console.log('Packaged extension passed: popup, fill/clear, outline, navigation after popup closure, confirmed picker upload, and no submission.')

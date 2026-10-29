@@ -60,6 +60,7 @@ export function parseOutline(data: unknown): Section[] {
       options: [...new Set(options)],
       rows: type === 7 ? entries.flatMap(entry => asArray(entry[3]).map(asText).filter(Boolean)) : [],
       ...(numeric || expression ? { validation: { ...(numeric ? { numeric: true } : {}), ...(expression ? { pattern: expression.slice(0, 1000) } : {}) } } : {}),
+      ...(type === 13 ? { entryIds: entries.map(entry => entry[0]).filter(id => typeof id === 'number' || typeof id === 'string').map(String) } : {}),
     })
   }
   return sections

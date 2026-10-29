@@ -1,6 +1,7 @@
 import type { AutomationStatus, Settings } from '../shared/types.ts'
 import { DEFAULT_SETTINGS } from '../shared/types.ts'
 import type { FormEngine } from './engine.ts'
+import { pickerDocuments } from './uploads.ts'
 
 interface Run extends AutomationStatus {
   visited: string[]
@@ -68,6 +69,7 @@ export class FormAutomation {
 
   start(settings: Settings): AutomationStatus {
     if (this.state.status === 'running') return this.status()
+    if (pickerDocuments(this.doc).length) { this.pause('Finish or close the open Google upload window, then Continue.'); return this.status() }
     if (this.state.status !== 'paused') this.state = fresh()
     this.settings = settings
     this.generation++
@@ -124,7 +126,9 @@ export class FormAutomation {
       this.state.pages = this.state.visited.length + 1
       this.state.message = `Filling section ${this.state.pages}…`
       if (!this.publish()) { this.pause('Tab storage is unavailable. Automatic navigation stopped.'); return }
-      await this.engine.fill(this.settings, scan.fields.filter(field => field.status === 'ready').map(field => ({ id: field.id, value: field.value })), active)
+      await this.engine.fill(this.settings, scan.fields.filter(field => field.status === 'ready').map(field => ({ id: field.id, value: field.value })), active, message => {
+        if (active()) { this.state.message = message; this.publish() }
+      })
       if (!active()) return
       // Let Google's own change handlers settle before deciding whether to advance.
       await new Promise(resolve => this.doc.defaultView?.setTimeout(resolve, 120))

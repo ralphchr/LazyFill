@@ -56,6 +56,7 @@ export interface OutlineQuestion {
   options: string[]
   rows: string[]
   validation?: { numeric?: boolean; pattern?: string }
+  entryIds?: string[]
 }
 
 export interface Section {
