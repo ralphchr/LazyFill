@@ -110,7 +110,7 @@ function Popup() {
   const ready = scan?.fields.filter(field => field.status === 'ready').length || 0
 
   return <main className="popup">
-    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.3</span></header>
+    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.4</span></header>
     <div className="form-title"><span className={`dot ${connected ? 'connected' : ''}`} /><p>{connected ? scan.title || 'Untitled form' : 'Google Forms, on your terms'}</p></div>
     <h2>Set once. Fill the rest.</h2>
     <p className="subtitle">Other fields: text <code>.</code> · numbers <code>0</code> · alphanumeric <code>A0</code></p>
@@ -129,12 +129,13 @@ function Popup() {
       </div>
       {running ? <button className="primary stop" type="button" disabled={busy} onClick={() => void act(stop)}>Stop automation <span>■</span></button> : <button className="primary" disabled={busy || !connected}>{status?.status === 'paused' ? 'Continue all sections' : 'Run all sections'} <span>↗</span></button>}
     </form>
-    <p className="run-hint">Fills from this page to the end. Stops before Submit.</p>
+    <p className="run-hint">Automatically fills, generates blank files, uploads, and advances. Stops before Submit.</p>
 
-    <section className="file-generator" aria-label="Temporary upload file">
-      <div className="file-download"><select aria-label="Blank file type" disabled={busy} value={settings.blankFileType} onChange={event => setSettings(previous => ({ ...previous, blankFileType: event.target.value as BlankFileType }))}><option value="random">Random file type</option><option value="png">Blank PNG</option><option value="pdf">Blank PDF</option><option value="txt">Empty TXT</option></select><button className="generate-file" type="button" disabled={busy} onClick={() => void act(generateFile)}>Generate blank file ↓</button></div>
-      <p className="helper">Downloads a blank file for you to upload with Add file → Browse.</p>
-    </section>
+    <details className="file-generator" aria-label="Manual download fallback">
+      <summary>Manual download <span>Fallback only</span></summary>
+      <div className="file-download"><select aria-label="Blank file type" disabled={busy} value={settings.blankFileType} onChange={event => setSettings(previous => ({ ...previous, blankFileType: event.target.value as BlankFileType }))}><option value="random">Random file type</option><option value="png">Blank PNG</option><option value="pdf">Blank PDF</option><option value="txt">Empty TXT</option></select><button className="generate-file" type="button" disabled={busy} onClick={() => void act(generateFile)}>Download blank file ↓</button></div>
+      <p className="helper">Run all sections generates and uploads files automatically. Download a file here only if Google blocks automatic uploading.</p>
+    </details>
 
     {connected && <>
       <div className="tools">
@@ -152,7 +153,7 @@ function Popup() {
         <summary>Questions & options <span>{scan.sections.length ? `${scan.sections.length} sections` : 'Current page'}</span></summary>
         <div className="file-tools">
           <label className="optional"><input type="checkbox" disabled={disabled} checked={settings.includeOptional} onChange={event => setSettings(previous => ({ ...previous, includeOptional: event.target.checked }))} /> Fill optional questions</label>
-          <label className="optional"><input type="checkbox" disabled={disabled} checked={settings.attachFiles} onChange={event => setSettings(previous => ({ ...previous, attachFiles: event.target.checked, fileMode: event.target.checked ? 'attach' : 'download' }))} /> Automatically attach files (optional)</label>
+          <label className="optional"><input type="checkbox" disabled={disabled} checked={settings.attachFiles} onChange={event => setSettings(previous => ({ ...previous, attachFiles: event.target.checked, fileMode: event.target.checked ? 'attach' : 'download' }))} /> Automatically generate and upload blank files</label>
           <p className="helper">Blank PNG: transparent image. Blank PDF: empty page. TXT: zero bytes.</p>
         </div>
         <div className="outline">
@@ -168,7 +169,7 @@ function Popup() {
       {!!scan.temporaryCount && <p className="tracked">{scan.temporaryCount} temporary answer{scan.temporaryCount === 1 ? '' : 's'} tracked in this tab.</p>}
     </>}
     {scan && !connected && <p className="notice">Open the form’s respondent link and finish signing in first.</p>}
-    <footer>Existing answers stay. Choices are random. Generate a blank file, then upload it yourself. Google may autosave—replace placeholders before submitting.</footer>
+    <footer>Existing answers stay. Choices are random. Blank files are generated and uploaded automatically. Google may autosave—replace placeholders before submitting.</footer>
   </main>
 }
 

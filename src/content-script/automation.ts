@@ -131,7 +131,7 @@ export class FormAutomation {
       })
       if (!active()) return
       const upload = this.engine.requiredManualUpload()
-      if (upload) { this.pause(`Upload needed: ${upload}. Click Generate blank file in FormPass, select it with Add file → Browse, then Continue.`); return }
+      if (upload) { this.pause(`Automatic upload is unavailable or disabled for ${upload}. Enable automatic file uploads in Questions & options, or use Manual download as a fallback.`); return }
       // Let Google's own change handlers settle before deciding whether to advance.
       await new Promise(resolve => this.doc.defaultView?.setTimeout(resolve, 120))
       if (!active()) return

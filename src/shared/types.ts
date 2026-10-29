@@ -5,6 +5,7 @@ export interface Settings {
   contact: string
   blankFileType: BlankFileType
   fileMode: 'download' | 'attach'
+  fileModeVersion: 1
   attachFiles: boolean
   text: string
   paragraph: string
@@ -20,8 +21,9 @@ export const DEFAULT_SETTINGS: Settings = {
   age: '26',
   contact: '0',
   blankFileType: 'random',
-  fileMode: 'download',
-  attachFiles: false,
+  fileMode: 'attach',
+  fileModeVersion: 1,
+  attachFiles: true,
   text: '.',
   paragraph: '.',
   email: 'preview@gmail.com',
@@ -92,15 +94,17 @@ export interface Response {
 
 export function normalizeSettings(value: unknown): Settings {
   const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  // Migrate the mistaken manual-first release; only a new explicit opt-out disables automatic uploads.
+  const fileMode = input.fileModeVersion === 1 && input.fileMode === 'download' ? 'download' : 'attach'
   return {
     name: typeof input.name === 'string' ? input.name.slice(0, 200) : DEFAULT_SETTINGS.name,
     birthday: typeof input.birthday === 'string' ? input.birthday.slice(0, 10) : DEFAULT_SETTINGS.birthday,
     age: typeof input.age === 'string' ? input.age.slice(0, 3) : DEFAULT_SETTINGS.age,
     contact: typeof input.contact === 'string' ? input.contact.slice(0, 50) : DEFAULT_SETTINGS.contact,
     blankFileType: ['random', 'png', 'pdf', 'txt'].includes(String(input.blankFileType)) ? input.blankFileType as BlankFileType : DEFAULT_SETTINGS.blankFileType,
-    fileMode: input.fileMode === 'attach' ? 'attach' : 'download',
-    // Old releases opted users into attachment by default. New installs and upgrades generate downloads unless explicitly enabled.
-    attachFiles: input.fileMode === 'attach',
+    fileMode,
+    fileModeVersion: 1,
+    attachFiles: fileMode === 'attach',
     text: typeof input.text === 'string' ? input.text.slice(0, 1000) : DEFAULT_SETTINGS.text,
     paragraph: typeof input.paragraph === 'string' ? input.paragraph.slice(0, 10000) : DEFAULT_SETTINGS.paragraph,
     email: typeof input.email === 'string' ? input.email.slice(0, 1000) : DEFAULT_SETTINGS.email,

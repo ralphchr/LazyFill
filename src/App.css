@@ -55,6 +55,9 @@ summary::-webkit-details-marker { display: none; }
 .file-tools { border-bottom: 1px solid #dce2d5; margin-bottom: 7px; padding-bottom: 12px; }
 .file-tools .optional { margin: 7px 0; }
 .file-generator { margin: 15px 0 6px; padding: 10px 0; border-top: 1px solid #dce2d5; }
+.file-generator > summary { display: flex; justify-content: space-between; list-style: none; color: #72836f; font-size: 10px; }
+.file-generator > summary span { color: #9ba491; font-size: 9px; }
+.file-generator[open] > summary { margin-bottom: 10px; }
 .file-generator .file-download { margin: 0 0 7px; }
 .file-generator .generate-file { background: #e7eedf; font-weight: 600; }
 .file-download { display: flex; gap: 6px; margin: 12px 0 7px; }

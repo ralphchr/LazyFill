@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FormPass",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Preview Google Form sections and fill blank fields with temporary answers while you prepare your real response.",
   "permissions": ["activeTab", "storage"],
   "content_scripts": [
