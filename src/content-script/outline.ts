@@ -47,6 +47,11 @@ export function parseOutline(data: unknown): Section[] {
     if ([6, 11, 12].includes(type)) continue
     const entries = asArray(item[4]).map(asArray)
     const options = asArray(entries[0]?.[1]).map(asArray).map(option => asText(option[0])).filter(Boolean)
+    const rules = entries.flatMap(entry => asArray(entry[4]).map(asArray))
+    const numeric = rules.some(rule => rule[0] === 1)
+    // Positive full-match rules only; negative/contains patterns are not interchangeable.
+    const pattern = rules.find(rule => rule[0] === 4 && rule[1] === 301)
+    const expression = asText(asArray(pattern?.[2])[0])
     sections[sections.length - 1].questions.push({
       title: asText(item[1]) || 'Untitled question',
       description: asText(item[2]),
@@ -54,6 +59,7 @@ export function parseOutline(data: unknown): Section[] {
       required: entries.some(entry => entry[2] === 1),
       options: [...new Set(options)],
       rows: type === 7 ? entries.flatMap(entry => asArray(entry[3]).map(asText).filter(Boolean)) : [],
+      ...(numeric || expression ? { validation: { ...(numeric ? { numeric: true } : {}), ...(expression ? { pattern: expression.slice(0, 1000) } : {}) } } : {}),
     })
   }
   return sections

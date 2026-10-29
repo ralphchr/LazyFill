@@ -23,12 +23,12 @@ You open an application form. The first section wants your final details and a P
 
 ### What you can do
 
-- **Set four placeholders:** name, birthday, Gmail/email, and age. Common English question labels are matched automatically, including first and last names.
-- **Use a dot for the rest:** ordinary short answers and paragraphs get `.`. Numbers, dates, and URLs use valid placeholder formats.
+- **Set five placeholders:** name, contact number, birthday, Gmail/email, and age. Common English question labels are matched automatically, including first/last names and phone/mobile labels.
+- **Match the field’s format:** ordinary text gets `.`, number-only fields get `0`, and alphanumeric-only fields get a value such as `A0`. Common patterns, input hints, instructions, and embedded Google validation are checked where available. Fixed-length numeric codes use repeated zeros.
 - **Randomize choices:** radio buttons, checkboxes, dropdowns, and supported grid rows pick an available option at random. Existing selections stay in place.
 - **Run all remaining sections:** fill, click Next, and repeat—even when the popup closes or Google reloads the page. Stop at any time from the popup or the form banner.
 - **Use blank upload files:** generate a transparent PNG, blank PDF, or zero-byte TXT. Normal file inputs can attach them automatically; Google’s upload picker may require manual selection.
-- **Keep it simple:** one Run button, four profile inputs, and a collapsed **Questions & blank files** panel for secondary tools.
+- **Keep it simple:** one Run button, five profile inputs, and a collapsed **Questions & blank files** panel for secondary tools.
 - **Read ahead and clean up:** inspect available questions without uploads, or clear unchanged placeholders on the current page.
 
 ### Get started
@@ -51,7 +51,7 @@ npm run build
 ### How it works
 
 ```text
-Name · Birthday · Gmail · Age
+Name · Contact · Birthday · Gmail · Age
               ↓
        Run all sections
               ↓
@@ -61,7 +61,7 @@ Name · Birthday · Gmail · Age
 ```
 
 1. Open your form and click **FormPass**.
-2. Edit the four placeholder values. These are saved locally when you run or fill a page.
+2. Edit the five placeholder values. These are saved locally when you run or fill a page.
 3. Click **Run all sections**. You can close the popup; the form tab continues the run.
 4. If the run pauses, resolve the question in the form and click **Continue all sections**.
 5. Replace or clear temporary answers before submitting your real response.
@@ -88,8 +88,10 @@ PNG and PDF files include the structure needed to open correctly, so they are no
 | Question | Temporary filling | Read-ahead outline |
 | --- | --- | --- |
 | Short answer and paragraph | Yes | Yes |
-| Name, birthday, Gmail/email, age | Saved common placeholders | Yes |
-| Other email, number, website inputs | Valid placeholder formats | Yes |
+| Name, contact number, birthday, Gmail/email, age | Saved common placeholders | Yes |
+| Other number-only fields | `0`, or repeated zeros for a required length | Yes |
+| Alphanumeric-only fields | Letters and digits, adapted to common length/case rules | Yes |
+| Other email and website inputs | Valid placeholder formats | Yes |
 | Multiple choice and linear scale | One random available option | Yes |
 | Checkboxes | One random available option | Yes |
 | Dropdown | One random available option | Yes |
@@ -109,6 +111,8 @@ Question outlines depend on Google exposing its embedded question data. Current-
 **Clearing is conservative.** It clears tracked values only when they still match the inserted placeholder. Visit earlier sections to clear their values. Some custom radio or dropdown selections need manual clearing if Google provides no usable reset control. If you replace a placeholder with a real answer, it is left alone.
 
 **Matching and validation have limits.** Profile matching uses common English labels. Number ranges, answer patterns, checkbox minimums, “Other” choices, time fields, and unrecognized grids can require manual edits. Existing answers are never replaced to make a placeholder pass validation.
+
+Age and contact-number questions use their saved profile values. For number-only contact fields, formatting characters such as spaces, `+`, and dashes are removed; the default contact placeholder is `0`. Zero placeholders still have to satisfy the form’s range rules—a field requiring a positive number will pause for your input. Complex or unavailable validation rules may also need manual completion.
 
 ### Privacy & permissions
 

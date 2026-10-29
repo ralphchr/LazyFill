@@ -3,6 +3,7 @@ import type { AutomationStatus, BlankFileType, FieldKind, FieldPreview, ScanResu
 import { dateParts, placeholder, profileKey } from '../shared/profile.ts'
 import { makeBlankFile, randomChoice } from '../shared/files.ts'
 import { readOutline } from './outline.ts'
+import { validatedPlaceholder } from '../shared/validation.ts'
 
 type TextControl = HTMLInputElement | HTMLTextAreaElement
 interface Target {
@@ -181,12 +182,21 @@ export class FormEngine {
       }
       for (const [controlIndex, element] of textControls.entries()) {
         const type = element instanceof HTMLTextAreaElement ? 'paragraph' : element.type
-        let kind: FieldKind = type === 'paragraph' ? 'paragraph' : type === 'email' || type === 'number' || type === 'url' || type === 'date' ? type : type === 'text' || type === '' ? 'text' : 'manual'
+        let kind: FieldKind = type === 'paragraph' ? 'paragraph' : type === 'tel' ? 'phone' : type === 'email' || type === 'number' || type === 'url' || type === 'date' ? type : type === 'text' || type === '' ? 'text' : 'manual'
         if (kind === 'text' && /\be-?mail\b/i.test(title)) kind = 'email'
         else if (kind === 'text' && /^(numeric|decimal)$/.test(element.inputMode)) kind = 'number'
         else if (kind === 'text' && /\b(website|web ?site|url)\b/i.test(title)) kind = 'url'
         const suffix = element.getAttribute('name') || element.getAttribute('aria-label') || String(controlIndex)
         add(element, kind, [], undefined, `input:${suffix}`, element.getAttribute('pattern') ? 'This answer has validation rules; adjust the temporary value if needed.' : undefined)
+        if (kind !== 'manual') {
+          const described = (element.getAttribute('aria-describedby') || '').split(/\s+/).map(id => this.doc.getElementById(id)?.textContent || '').join(' ')
+          targets[targets.length - 1].preview.value = validatedPlaceholder(title, kind, settings, {
+            type, inputMode: element.inputMode, pattern: element.getAttribute('pattern') || '',
+            minLength: element.minLength, maxLength: element.maxLength,
+            description: `${title} ${metadata?.description || ''} ${element.getAttribute('placeholder') || ''} ${element.getAttribute('title') || ''} ${described} ${question.textContent || ''}`,
+            numeric: metadata?.validation?.numeric, metadataPattern: metadata?.validation?.pattern,
+          })
+        }
       }
       for (const [kind, selector] of [['choice', '[role="radio"], input[type="radio"]'], ['checkbox', '[role="checkbox"], input[type="checkbox"]']] as const) {
         const controls = [...question.querySelectorAll<HTMLElement>(selector)].filter(element => visible(element) && enabled(element) && !(element instanceof HTMLInputElement && element.parentElement?.closest('[role="radio"], [role="checkbox"]')))

@@ -10,6 +10,7 @@ test('recognizes common profile questions without confusing unrelated names or w
   for (const title of ['Birthday', 'Birth date', 'Date of birth', 'DOB']) assert.equal(profileKey(title), 'birthday', title)
   for (const title of ['Gmail', 'Email address', 'Your e-mail']) assert.equal(profileKey(title), 'email', title)
   for (const title of ['Age', 'Age (in years)', 'How old are you?']) assert.equal(profileKey(title), 'age', title)
+  for (const title of ['Contact number', 'Contact #', 'Mobile no.', 'Phone number', 'Telephone', 'Cellphone', 'Contact number (numbers only)']) assert.equal(profileKey(title), 'contact', title)
   for (const title of ['Company name', 'Full name of your school', 'School name', 'Username', 'Message', 'Page', 'Tell us about yourself', 'Name of your project']) assert.equal(profileKey(title), null, title)
 })
 
@@ -26,7 +27,8 @@ test('uses profile values, separates first/last names, and defaults unrelated te
   assert.equal(placeholder('Birthday (DD/MM/YYYY)', 'text', settings), '07/03/1998')
   assert.equal(placeholder('Why do you want to join?', 'paragraph', settings), '.')
   assert.equal(placeholder('School name', 'text', settings), '.')
-  assert.equal(placeholder('Quantity', 'number', settings), '1')
+  assert.equal(placeholder('Quantity', 'number', settings), '0')
+  assert.equal(placeholder('Contact number', 'text', settings), settings.contact)
 })
 
 test('validates birthday parts and migrates old preferences to the profile defaults', () => {

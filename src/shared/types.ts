@@ -2,6 +2,7 @@ export interface Settings {
   name: string
   birthday: string
   age: string
+  contact: string
   blankFileType: BlankFileType
   attachFiles: boolean
   text: string
@@ -16,18 +17,19 @@ export const DEFAULT_SETTINGS: Settings = {
   name: 'Test User',
   birthday: '2000-01-01',
   age: '26',
+  contact: '0',
   blankFileType: 'random',
   attachFiles: true,
   text: '.',
   paragraph: '.',
   email: 'preview@gmail.com',
-  number: '1',
+  number: '0',
   url: 'https://example.com',
   includeOptional: true,
 }
 
 export type BlankFileType = 'random' | 'png' | 'pdf' | 'txt'
-export type FieldKind = 'text' | 'paragraph' | 'email' | 'number' | 'url' | 'date' | 'file' | 'choice' | 'checkbox' | 'dropdown' | 'manual'
+export type FieldKind = 'text' | 'paragraph' | 'email' | 'phone' | 'number' | 'url' | 'date' | 'file' | 'choice' | 'checkbox' | 'dropdown' | 'manual'
 
 export interface AutomationStatus {
   status: 'idle' | 'running' | 'paused' | 'complete'
@@ -53,6 +55,7 @@ export interface OutlineQuestion {
   required: boolean
   options: string[]
   rows: string[]
+  validation?: { numeric?: boolean; pattern?: string }
 }
 
 export interface Section {
@@ -90,12 +93,13 @@ export function normalizeSettings(value: unknown): Settings {
     name: typeof input.name === 'string' ? input.name.slice(0, 200) : DEFAULT_SETTINGS.name,
     birthday: typeof input.birthday === 'string' ? input.birthday.slice(0, 10) : DEFAULT_SETTINGS.birthday,
     age: typeof input.age === 'string' ? input.age.slice(0, 3) : DEFAULT_SETTINGS.age,
+    contact: typeof input.contact === 'string' ? input.contact.slice(0, 50) : DEFAULT_SETTINGS.contact,
     blankFileType: ['random', 'png', 'pdf', 'txt'].includes(String(input.blankFileType)) ? input.blankFileType as BlankFileType : DEFAULT_SETTINGS.blankFileType,
     attachFiles: input.attachFiles === undefined ? DEFAULT_SETTINGS.attachFiles : input.attachFiles === true,
     text: typeof input.text === 'string' ? input.text.slice(0, 1000) : DEFAULT_SETTINGS.text,
     paragraph: typeof input.paragraph === 'string' ? input.paragraph.slice(0, 10000) : DEFAULT_SETTINGS.paragraph,
     email: typeof input.email === 'string' ? input.email.slice(0, 1000) : DEFAULT_SETTINGS.email,
-    number: typeof input.number === 'string' ? input.number.slice(0, 1000) : DEFAULT_SETTINGS.number,
+    number: '0',
     url: typeof input.url === 'string' ? input.url.slice(0, 1000) : DEFAULT_SETTINGS.url,
     includeOptional: input.includeOptional === undefined ? DEFAULT_SETTINGS.includeOptional : input.includeOptional === true,
   }

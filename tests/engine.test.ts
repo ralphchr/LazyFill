@@ -45,7 +45,7 @@ test('previews required blanks and preserves existing, hidden and optional answe
 })
 
 test('rechecks stale plans and native validation before recording a fill', async () => {
-  const { doc, engine } = setup(question('Name *', '<input required>') + question('Code *', '<input required pattern="[0-9]{3}">'))
+  const { doc, engine } = setup(question('Name *', '<input required>') + question('Code *', '<input required pattern="[A-Z]{3}">'))
   const scan = engine.scan()
   doc.querySelector('input')!.value = 'My real answer'
   await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))

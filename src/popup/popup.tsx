@@ -96,10 +96,10 @@ function Popup() {
   const ready = scan?.fields.filter(field => field.status === 'ready').length || 0
 
   return <main className="popup">
-    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2</span></header>
+    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.1</span></header>
     <div className="form-title"><span className={`dot ${connected ? 'connected' : ''}`} /><p>{connected ? scan.title || 'Untitled form' : 'Google Forms, on your terms'}</p></div>
     <h2>Set once. Fill the rest.</h2>
-    <p className="subtitle">Your common placeholders below. Everything else gets <code>.</code></p>
+    <p className="subtitle">Other fields: text <code>.</code> · numbers <code>0</code> · alphanumeric <code>A0</code></p>
     {error && <p className="notice error" role="alert">{error}</p>}
     {message && <p className="notice success" role="status">{message}</p>}
     {status && status.status !== 'idle' && <div className={`run-status ${status.status}`} role="status"><span className="status-dot" /><p>{status.message}</p></div>}
@@ -107,7 +107,8 @@ function Popup() {
 
     <form className="profile" onSubmit={event => { event.preventDefault(); void act(async () => { const next = await save(); await send({ type: 'START', settings: next }) }) }}>
       <div className="profile-grid">
-        <label className="wide">Name<input name="name" autoComplete="off" required disabled={disabled} value={settings.name} onChange={event => setSettings(previous => ({ ...previous, name: event.target.value }))} /></label>
+        <label>Name<input name="name" autoComplete="off" required disabled={disabled} value={settings.name} onChange={event => setSettings(previous => ({ ...previous, name: event.target.value }))} /></label>
+        <label>Contact number<input name="contact" type="tel" autoComplete="off" required disabled={disabled} value={settings.contact} onChange={event => setSettings(previous => ({ ...previous, contact: event.target.value }))} /></label>
         <label className="wide">Gmail / email<input name="email" type="email" autoComplete="off" required disabled={disabled} value={settings.email} onChange={event => setSettings(previous => ({ ...previous, email: event.target.value }))} /></label>
         <label>Birthday<input name="birthday" type="date" required disabled={disabled} value={settings.birthday} onChange={event => setSettings(previous => ({ ...previous, birthday: event.target.value }))} /></label>
         <label>Age<input name="age" type="number" min="0" max="150" required disabled={disabled} value={settings.age} onChange={event => setSettings(previous => ({ ...previous, age: event.target.value }))} /></label>

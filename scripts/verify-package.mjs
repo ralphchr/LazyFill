@@ -44,7 +44,8 @@ const popup = openPopup()
 const doc = popup.window.document
 await until(() => doc.querySelector('.connected'), 'The packaged popup must connect')
 assert.match(doc.body.textContent, /Application preview/)
-assert.equal(doc.querySelectorAll('.profile-grid input').length, 4)
+assert.equal(doc.querySelectorAll('.profile-grid input').length, 5)
+assert.equal(doc.querySelector('input[name=contact]').value, '0')
 assert.equal(doc.querySelectorAll('.questions').length, 1)
 const tool = text => [...doc.querySelectorAll('.tools button')].find(button => button.textContent === text)
 tool('Fill this page').click()
@@ -70,7 +71,7 @@ form.window.document.addEventListener('click', event => {
 })
 form.window.document.querySelector('form [jsname=OCpkoe]').addEventListener('click', () => {
   firstPageName = form.window.document.querySelector('[name="entry.1"]').value
-  form.window.document.querySelector('form').innerHTML = '<div role="listitem" data-item-id="about"><div role="heading">About *</div><textarea required></textarea></div><div role="listitem" data-item-id="birthday"><div role="heading">Birthday *</div><input type="date" required></div><div role="listitem" data-item-id="age"><div role="heading">Age *</div><input type="number" required></div><button type="button" jsname="M2UYVd">Submit</button>'
+  form.window.document.querySelector('form').innerHTML = '<div role="listitem" data-item-id="about"><div role="heading">About *</div><textarea required></textarea></div><div role="listitem" data-item-id="birthday"><div role="heading">Birthday *</div><input type="date" required></div><div role="listitem" data-item-id="age"><div role="heading">Age *</div><input type="number" required></div><div role="listitem" data-item-id="phone"><div role="heading">Contact number *</div><input type="tel" required></div><div role="listitem" data-item-id="count"><div role="heading">Quantity *</div><input type="number" required></div><div role="listitem" data-item-id="code"><div role="heading">Code *</div><input pattern="[A-Za-z0-9]{4}" required></div><button type="button" jsname="M2UYVd">Submit</button>'
 })
 doc.querySelector('.primary').click()
 await until(() => doc.querySelector('.run-status.running'), 'Run all sections must start')
@@ -80,6 +81,9 @@ assert.equal(firstPageName, 'Test User')
 assert.equal(form.window.document.querySelector('textarea').value, '.')
 assert.equal(form.window.document.querySelector('input[type=date]').value, '2000-01-01')
 assert.equal(form.window.document.querySelector('input[type=number]').value, '26')
+assert.equal(form.window.document.querySelector('input[type=tel]').value, '0')
+assert.equal(form.window.document.querySelector('[data-item-id=count] input').value, '0')
+assert.match(form.window.document.querySelector('[data-item-id=code] input').value, /^[A-Za-z0-9]{4}$/)
 assert.equal(submits, 0)
 const reopened = openPopup()
 await until(() => reopened.window.document.querySelector('.run-status.complete'), 'Reopened popup must recover completed progress')

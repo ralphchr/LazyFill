@@ -1,11 +1,12 @@
 import type { FieldKind, Settings } from './types.ts'
 
-export type ProfileKey = 'name' | 'birthday' | 'email' | 'age'
+export type ProfileKey = 'name' | 'birthday' | 'email' | 'age' | 'contact'
 
 export function profileKey(title: string): ProfileKey | null {
-  const text = title.toLowerCase().replace(/[_*():?.]/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = title.toLowerCase().replace(/[_*():?.#]/g, ' ').replace(/\s+/g, ' ').trim()
   if (/\b(birth\s*(day|date)|date of birth|dob)\b/.test(text)) return 'birthday'
   if (/\b(e-?mail|gmail)\b/.test(text)) return 'email'
+  if (/\b(?:contact|phone|mobile|cell(?:phone)?|telephone)\s*(?:number|no\b|#)\b|\b(?:phone|telephone|cellphone)\b|^(?:your\s+)?(?:mobile|contact)$/.test(text)) return 'contact'
   if (/^(?:\d+\s+)?(?:your\s+)?age\b/.test(text) || /\bhow old are you\b/.test(text)) return 'age'
   if ((/\b(company|school|business|organization|employer|parent|father|mother|guardian|pet|project|user|college|university|program|event|team|course)\b/.test(text) && /\bname\b/.test(text)) || /\busername\b/.test(text)) return null
   if (/^(?:\d+\s+)?(?:your\s+)?(?:(?:full|first|middle|last|given|family|complete|legal)\s+)?name$/.test(text) || /^name\s+(?:last|first)\b/.test(text) || /\b(full|complete|legal) name\b/.test(text) || /\bname of (?:the )?(?:applicant|respondent|student)\b/.test(text)) return 'name'
@@ -30,7 +31,8 @@ export function placeholder(title: string, kind: FieldKind, settings: Settings):
   if (key) return settings[key]
   if (kind === 'date') return settings.birthday
   if (kind === 'text' || kind === 'paragraph') return '.'
-  if (kind === 'number') return settings.number
+  if (kind === 'number') return '0'
+  if (kind === 'phone') return settings.contact
   if (kind === 'email') return settings.email
   if (kind === 'url') return settings.url
   return ''
