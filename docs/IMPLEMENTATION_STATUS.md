@@ -1,4 +1,6 @@
-# Implementation status — 0.2.2
+# Implementation status — 0.2.3
+
+File workflow: the visible **Generate blank file** button creates and downloads a random or selected blank PNG/PDF/TXT for the user to upload manually. It works independently of form detection and does not open or modify the picker. Automatic attachment is off for new installs and upgrades; it can be explicitly enabled in Questions & options. Required manual uploads pause the run immediately with generation and Browse instructions.
 
 Implemented: compact five-field profile including contact number, common English question matching, dot defaults for unrelated text, zero defaults for number-only fields, alphanumeric placeholders for supported rules, length/case handling for common patterns, numeric Google metadata parsing, phone formatting normalization, randomized choices and supported grid rows, native dates and recognized birthday components, blank PNG/PDF/TXT generation, accepted-type checks and automatic attachment on normal file inputs, blank downloads for manual pickers, automatic Next navigation, resume across full document loads, popup-independent progress, Stop/Continue controls, loop detection, inactivity expiry, and final-page detection without submission. Existing answer preservation, conservative clearing, temporary-answer tracking, and section outlines remain available.
 

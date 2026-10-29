@@ -54,6 +54,9 @@ summary::-webkit-details-marker { display: none; }
 .tracked { color: #819079; font-size: 10px; text-align: center; margin-top: 11px; }
 .file-tools { border-bottom: 1px solid #dce2d5; margin-bottom: 7px; padding-bottom: 12px; }
 .file-tools .optional { margin: 7px 0; }
+.file-generator { margin: 15px 0 6px; padding: 10px 0; border-top: 1px solid #dce2d5; }
+.file-generator .file-download { margin: 0 0 7px; }
+.file-generator .generate-file { background: #e7eedf; font-weight: 600; }
 .file-download { display: flex; gap: 6px; margin: 12px 0 7px; }
 .file-download select, .file-download button { border: 1px solid #d8e0cf; background: #fff; color: #4a674e; border-radius: 5px; padding: 7px; font-size: 10px; }
 .file-download select { flex: 1; min-width: 0; }

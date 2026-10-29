@@ -84,9 +84,10 @@ test('attaches an accepted blank file through file-input events and preserves ex
   let changed = 0
   inputs[0].addEventListener('change', () => changed++)
   const engine = new FormEngine(dom.window.document, url, dom.window.sessionStorage)
-  const scan = engine.scan()
+  const settings = { ...DEFAULT_SETTINGS, fileMode: 'attach' as const, attachFiles: true }
+  const scan = engine.scan(settings)
   assert.deepEqual(scan.fields.map(field => field.status), ['ready', 'answered'])
-  await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  await engine.fill(settings, scan.fields.map(field => ({ id: field.id, value: field.value })))
   assert.equal(attached[0].length, 1)
   assert.equal(attached[0][0].type, 'application/pdf')
   assert.equal(attached[1][0].name, 'final.pdf')

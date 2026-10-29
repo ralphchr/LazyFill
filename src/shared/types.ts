@@ -4,6 +4,7 @@ export interface Settings {
   age: string
   contact: string
   blankFileType: BlankFileType
+  fileMode: 'download' | 'attach'
   attachFiles: boolean
   text: string
   paragraph: string
@@ -19,7 +20,8 @@ export const DEFAULT_SETTINGS: Settings = {
   age: '26',
   contact: '0',
   blankFileType: 'random',
-  attachFiles: true,
+  fileMode: 'download',
+  attachFiles: false,
   text: '.',
   paragraph: '.',
   email: 'preview@gmail.com',
@@ -96,7 +98,9 @@ export function normalizeSettings(value: unknown): Settings {
     age: typeof input.age === 'string' ? input.age.slice(0, 3) : DEFAULT_SETTINGS.age,
     contact: typeof input.contact === 'string' ? input.contact.slice(0, 50) : DEFAULT_SETTINGS.contact,
     blankFileType: ['random', 'png', 'pdf', 'txt'].includes(String(input.blankFileType)) ? input.blankFileType as BlankFileType : DEFAULT_SETTINGS.blankFileType,
-    attachFiles: input.attachFiles === undefined ? DEFAULT_SETTINGS.attachFiles : input.attachFiles === true,
+    fileMode: input.fileMode === 'attach' ? 'attach' : 'download',
+    // Old releases opted users into attachment by default. New installs and upgrades generate downloads unless explicitly enabled.
+    attachFiles: input.fileMode === 'attach',
     text: typeof input.text === 'string' ? input.text.slice(0, 1000) : DEFAULT_SETTINGS.text,
     paragraph: typeof input.paragraph === 'string' ? input.paragraph.slice(0, 10000) : DEFAULT_SETTINGS.paragraph,
     email: typeof input.email === 'string' ? input.email.slice(0, 1000) : DEFAULT_SETTINGS.email,

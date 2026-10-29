@@ -33,4 +33,6 @@ test('settings use safe defaults and validate persisted types', () => {
   assert.deepEqual(normalizeSettings(null), DEFAULT_SETTINGS)
   assert.equal(normalizeSettings({ includeOptional: 'true', text: 123 }).includeOptional, false)
   assert.equal(normalizeSettings({ text: 'x'.repeat(2000) }).text.length, 1000)
+  assert.equal(normalizeSettings({ attachFiles: true }).attachFiles, false)
+  assert.equal(normalizeSettings({ fileMode: 'attach', attachFiles: true }).attachFiles, true)
 })

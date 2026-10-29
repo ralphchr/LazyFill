@@ -35,11 +35,11 @@ function Popup() {
         if (typeof chrome === 'undefined' || !chrome.tabs) throw new Error('Load the dist folder as an extension in Edge or Chrome.')
         const [tabs, stored] = await Promise.all([chrome.tabs.query({ active: true, currentWindow: true }), chrome.storage.local.get('settings')])
         if (cancelled) return
+        const next = normalizeSettings(stored.settings)
+        setSettings(next)
         const tab = tabs[0]
         if (!tab?.id || !tab.url?.startsWith('https://docs.google.com/forms/')) throw new Error('Open a Google Form respondent link, then click FormPass.')
         tabId.current = tab.id
-        const next = normalizeSettings(stored.settings)
-        setSettings(next)
         const result = await chrome.tabs.sendMessage(tab.id, { type: 'SCAN', settings: next }) as Response
         if (!cancelled) accept(result)
       } catch (cause) {
@@ -77,9 +77,23 @@ function Popup() {
 
   async function save() {
     // Keep legacy preference keys readable while using the new dot default.
-    const next: Settings = { ...settings, text: '.', paragraph: '.' }
+    const next: Settings = { ...settings, text: '.', paragraph: '.', attachFiles: settings.fileMode === 'attach' }
     await chrome.storage.local.set({ settings: next })
     return next
+  }
+
+  async function generateFile() {
+    const file = makeBlankFile(settings.blankFileType)!
+    const url = URL.createObjectURL(file)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = file.name
+    document.body.append(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 10000)
+    if (typeof chrome !== 'undefined' && chrome.storage) await chrome.storage.local.set({ settings })
+    setMessage(`Generated ${file.name}. In the form, choose Add file → Browse and select it from Downloads.`)
   }
 
   async function stop() {
@@ -96,7 +110,7 @@ function Popup() {
   const ready = scan?.fields.filter(field => field.status === 'ready').length || 0
 
   return <main className="popup">
-    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.2</span></header>
+    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.3</span></header>
     <div className="form-title"><span className={`dot ${connected ? 'connected' : ''}`} /><p>{connected ? scan.title || 'Untitled form' : 'Google Forms, on your terms'}</p></div>
     <h2>Set once. Fill the rest.</h2>
     <p className="subtitle">Other fields: text <code>.</code> · numbers <code>0</code> · alphanumeric <code>A0</code></p>
@@ -117,6 +131,11 @@ function Popup() {
     </form>
     <p className="run-hint">Fills from this page to the end. Stops before Submit.</p>
 
+    <section className="file-generator" aria-label="Temporary upload file">
+      <div className="file-download"><select aria-label="Blank file type" disabled={busy} value={settings.blankFileType} onChange={event => setSettings(previous => ({ ...previous, blankFileType: event.target.value as BlankFileType }))}><option value="random">Random file type</option><option value="png">Blank PNG</option><option value="pdf">Blank PDF</option><option value="txt">Empty TXT</option></select><button className="generate-file" type="button" disabled={busy} onClick={() => void act(generateFile)}>Generate blank file ↓</button></div>
+      <p className="helper">Downloads a blank file for you to upload with Add file → Browse.</p>
+    </section>
+
     {connected && <>
       <div className="tools">
         <button type="button" disabled={disabled || !ready} onClick={() => void act(async () => {
@@ -130,23 +149,11 @@ function Popup() {
         <button type="button" disabled={busy} onClick={() => void act(() => send({ type: 'SCAN', settings }))}>Refresh</button>
       </div>
       <details className="questions">
-        <summary>Questions & blank files <span>{scan.sections.length ? `${scan.sections.length} sections` : 'Current page'}</span></summary>
+        <summary>Questions & options <span>{scan.sections.length ? `${scan.sections.length} sections` : 'Current page'}</span></summary>
         <div className="file-tools">
           <label className="optional"><input type="checkbox" disabled={disabled} checked={settings.includeOptional} onChange={event => setSettings(previous => ({ ...previous, includeOptional: event.target.checked }))} /> Fill optional questions</label>
-          <label className="optional"><input type="checkbox" disabled={disabled} checked={settings.attachFiles} onChange={event => setSettings(previous => ({ ...previous, attachFiles: event.target.checked }))} /> Attach blank files where supported</label>
-          <div className="file-download"><select aria-label="Blank file type" disabled={disabled} value={settings.blankFileType} onChange={event => setSettings(previous => ({ ...previous, blankFileType: event.target.value as BlankFileType }))}><option value="random">Random file type</option><option value="png">Blank PNG</option><option value="pdf">Blank PDF</option><option value="txt">Empty TXT</option></select><button type="button" disabled={busy} onClick={() => void act(async () => {
-            const file = makeBlankFile(settings.blankFileType)!
-            const url = URL.createObjectURL(file)
-            const anchor = document.createElement('a')
-            anchor.href = url
-            anchor.download = file.name
-            document.body.append(anchor)
-            anchor.click()
-            anchor.remove()
-            window.setTimeout(() => URL.revokeObjectURL(url), 10000)
-            setMessage(`Blank ${file.name.split('.').at(-1)!.toUpperCase()} downloaded. Select it in the form’s upload picker.`)
-          })}>Download blank</button></div>
-          <p className="helper">PNG: transparent image. PDF: blank page. TXT: zero bytes. Google’s picker may need manual selection.</p>
+          <label className="optional"><input type="checkbox" disabled={disabled} checked={settings.attachFiles} onChange={event => setSettings(previous => ({ ...previous, attachFiles: event.target.checked, fileMode: event.target.checked ? 'attach' : 'download' }))} /> Automatically attach files (optional)</label>
+          <p className="helper">Blank PNG: transparent image. Blank PDF: empty page. TXT: zero bytes.</p>
         </div>
         <div className="outline">
           {!scan.outlineAvailable && <p className="helper">Only this page’s questions are available.</p>}
@@ -161,7 +168,7 @@ function Popup() {
       {!!scan.temporaryCount && <p className="tracked">{scan.temporaryCount} temporary answer{scan.temporaryCount === 1 ? '' : 's'} tracked in this tab.</p>}
     </>}
     {scan && !connected && <p className="notice">Open the form’s respondent link and finish signing in first.</p>}
-    <footer>Existing answers stay. Choices are random. Blank files attach where supported; uploads or validation may need you. Google may autosave—replace placeholders before submitting.</footer>
+    <footer>Existing answers stay. Choices are random. Generate a blank file, then upload it yourself. Google may autosave—replace placeholders before submitting.</footer>
   </main>
 }
 

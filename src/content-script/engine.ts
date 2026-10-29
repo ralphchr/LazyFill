@@ -147,7 +147,7 @@ export class FormEngine {
         const canAttach = settings.attachFiles && typeof DataTransfer !== 'undefined' && (input ? enabled(input) && !!makeBlankFile(settings.blankFileType, input.accept) : !!button)
         if (target.preview.status === 'ready' && !canAttach) {
           target.preview.status = 'manual'
-          target.preview.note = 'Upload a blank file manually, or enable automatic blank attachments. Downloads are under Questions & blank files.'
+          target.preview.note = 'Click Generate blank file in FormPass, then select the download with Add file → Browse.'
         }
         continue
       }
@@ -393,6 +393,10 @@ export class FormEngine {
   validationProblem(): string {
     const invalid = [...this.doc.querySelectorAll<HTMLElement>('[aria-invalid="true"], input:invalid, textarea:invalid, select:invalid')].find(element => enabled(element) && visible(element))
     return invalid ? clean(invalid.closest('[role="listitem"]')?.querySelector('[role="heading"]')?.textContent) || 'A required answer' : ''
+  }
+
+  requiredManualUpload(): string | undefined {
+    return this.targets(this.settings).find(target => target.preview.kind === 'file' && target.preview.status === 'manual' && target.preview.required && enabled(target.element) && blank(target))?.preview.title
   }
 
   installGuards() {

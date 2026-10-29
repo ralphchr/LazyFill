@@ -209,3 +209,15 @@ test('advances through an empty introductory section that exposes form metadata'
   assert.equal(runner.status().status, 'complete')
   assert.equal(runner.status().pages, 2)
 })
+
+test('default file mode pauses for a generated download without opening the picker', async t => {
+  const { doc, win, runner } = setup(question('Resume *', '<button type="button">Add file</button>') + next)
+  t.after(() => win.close())
+  let clicked = 0
+  doc.querySelectorAll('button').forEach(button => button.addEventListener('click', () => clicked++))
+  runner.start(DEFAULT_SETTINGS)
+  await runner.step()
+  assert.equal(runner.status().status, 'paused')
+  assert.match(runner.status().message, /Generate blank file/)
+  assert.equal(clicked, 0)
+})

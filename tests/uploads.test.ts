@@ -174,10 +174,11 @@ test('engine tracks picker uploads across scans and keeps question identity stab
     input!.addEventListener('change', () => { app.complete(frame, files()[0].name) })
   })
   const engine = new FormEngine(app.doc, url, app.win.sessionStorage)
-  const scan = engine.scan(DEFAULT_SETTINGS)
+  const settings = { ...DEFAULT_SETTINGS, fileMode: 'attach' as const, attachFiles: true }
+  const scan = engine.scan(settings)
   const fingerprint = engine.pageFingerprint()
   assert.equal(scan.fields[0].status, 'ready')
-  await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  await engine.fill(settings, scan.fields.map(field => ({ id: field.id, value: field.value })))
   assert.equal(engine.scan().fields[0].status, 'answered')
   assert.equal(engine.scan().temporaryCount, 1)
   assert.equal(engine.pageFingerprint(), fingerprint)

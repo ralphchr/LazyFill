@@ -27,8 +27,8 @@ You open an application form. The first section wants your final details and a P
 - **Match the field’s format:** ordinary text gets `.`, number-only fields get `0`, and alphanumeric-only fields get a value such as `A0`. Common patterns, input hints, instructions, and embedded Google validation are checked where available. Fixed-length numeric codes use repeated zeros.
 - **Randomize choices:** radio buttons, checkboxes, dropdowns, and supported grid rows pick an available option at random. Existing selections stay in place.
 - **Run all remaining sections:** fill, click Next, and repeat—even when the popup closes or Google reloads the page. Stop at any time from the popup or the form banner.
-- **Use blank upload files:** generate a transparent PNG, blank PDF, or zero-byte TXT. FormPass supports normal file inputs and Google’s same-origin upload picker, including its drag-and-drop controls. Unsupported picker variants can still need manual selection.
-- **Keep it simple:** one Run button, five profile inputs, and a collapsed **Questions & blank files** panel for secondary tools.
+- **Generate a temporary file:** click **Generate blank file** in the extension to download a random blank PNG, PDF, or TXT. Then choose that download in the form’s upload window. A specific file type can also be selected.
+- **Keep it simple:** one Run button, five profile inputs, a visible file generator, and a collapsed **Questions & options** panel for secondary tools.
 - **Read ahead and clean up:** inspect available questions without uploads, or clear unchanged placeholders on the current page.
 
 ### Get started
@@ -63,12 +63,12 @@ Name · Contact · Birthday · Gmail · Age
 1. Open your form and click **FormPass**.
 2. Edit the five placeholder values. These are saved locally when you run or fill a page.
 3. Click **Run all sections**. You can close the popup; the form tab continues the run.
-4. If the run pauses, resolve the question in the form and click **Continue all sections**.
+4. If an upload is required, click **Generate blank file**, select the download with the form’s **Add file → Browse** controls, then click **Continue all sections**. Other validation issues can be resolved directly in the form.
 5. Replace or clear temporary answers before submitting your real response.
 
 The runner starts from the current section and follows the route chosen by existing answers or random options. It does not visit every conditional branch. Repeated sections, missing controls, blocked tab storage, and validation errors stop the run instead of retrying indefinitely. Inactive runs expire after ten minutes; runs also have a 100-section limit.
 
-**Fill this page** fills without navigating. **Clear this page** removes only unchanged tracked values. Expand **Questions & blank files** for upload downloads, optional-field preferences, and a read-only outline of available sections. The outline uses data already supplied by Google; it cannot reveal questions absent from the loaded page data.
+**Fill this page** fills without navigating. **Clear this page** removes only unchanged tracked values. The file generator is visible without expanding any panel and works even when the active tab is not a Google Form. Expand **Questions & options** for preferences and a read-only outline of available sections. The outline uses data already supplied by Google; it cannot reveal questions absent from the loaded page data.
 
 ### Blank upload files
 
@@ -79,11 +79,11 @@ The runner starts from the current section and follows the route chosen by exist
 | TXT | Empty file, zero bytes |
 | Random | Randomly selects one of the supported formats |
 
-**Attach blank files where supported** is enabled by default. For Google Forms, close any already-open upload window, then click **Run all sections** or **Continue all sections**. FormPass opens the correct question’s picker, checks its allowed formats and size limit, transfers the blank file through its input or drop zone, and waits for the named attachment to appear in the form and the picker to close before advancing. Existing files are preserved. It does not treat a changed FileList alone as a successful Google upload.
+**The default workflow is generate → download → upload yourself.** Choose **Random file type**, **Blank PNG**, **Blank PDF**, or **Empty TXT**, then click **Generate blank file**. The extension creates the file locally and downloads it to your computer. In Google’s upload window, click **Browse** and select the file from Downloads. You can generate the file while that window is already open.
 
-Random mode prefers blank PNG or PDF in Google’s picker when accepted; TXT remains available explicitly, or when it is the only supported blank format.
+**Automatic attachment is optional and off by default, including after upgrading from older releases.** To enable it, expand **Questions & options** and check **Automatically attach files (optional)** before running. In that mode, close an existing picker first. FormPass opens the correct question’s picker, checks formats and size limits, transfers a blank file through the input or drop zone, and waits for the named attachment in the form plus picker closure. Random mode prefers PNG/PDF when accepted. Existing files are preserved.
 
-If Google rejects the file or the picker cannot be accessed, the run pauses with an upload-specific message. To finish manually, expand **Questions & blank files**, choose a format, click **Download blank**, and select that file in the form. An unconfirmed attempt is not retried automatically: finish the upload, or close the picker and use **Clear this page** to reset that attempt before continuing.
+If an optional automatic attempt remains unconfirmed, finish it manually, or close the picker and use **Clear this page** to reset that attempt before continuing. Generating a download itself never opens or changes the form’s picker.
 
 PNG and PDF files include the structure needed to open correctly, so they are not zero-byte files. Blank files can still be rejected by a form’s restrictions. Unsupported file formats need a file you supply yourself. Clearing a local input does not delete a file already uploaded to Google Drive.
 
@@ -102,7 +102,7 @@ PNG and PDF files include the structure needed to open correctly, so they are no
 | Native dates and recognized birthday components | Yes | Yes |
 | Grids with accessible choice rows | Random row choices; preserves answered rows | Yes |
 | Time and unrecognized composite controls | Manual | Yes |
-| File upload | Normal inputs and supported Google picker input/drop-zone controls | Yes |
+| File upload | Generate a blank download and upload it yourself; automatic attachment is optional | Yes |
 
 Question outlines depend on Google exposing its embedded question data. Current-page filling remains available if that outline cannot be read.
 
@@ -154,7 +154,7 @@ manifest.json        Source manifest (packaged into dist/)
 
 For a local UI walkthrough, run `npm run dev` and open `/tests/fixtures/popup.html` on the Vite server. The fixture uses a simulated form and extension API, so no live responses are sent. Its **Simulate completed upload** button lets a paused run continue to the next test section.
 
-The packaged smoke test checks filling, clearing, read-ahead, automation after popup closure, a simulated Google picker frame, confirmed attachment tracking, and stopping before submission. Before using a new build on an important form, try a form you own: Google’s page markup, picker, and embedded data format are undocumented and may change. A synthetic picker test does not verify Google’s live upload service.
+The packaged smoke test checks generated download links and file types, file generation on non-form tabs, manual file defaults, filling, clearing, read-ahead, automation after popup closure, an explicitly enabled simulated picker upload, and stopping before submission. Google’s page markup, picker, and embedded data format are undocumented and may change. A synthetic picker test does not verify Google’s live upload service.
 
 ### Troubleshooting
 
@@ -166,8 +166,8 @@ The packaged smoke test checks filling, clearing, read-ahead, automation after p
 | No section outline | Reload; some forms do not expose readable question data |
 | Next still refuses to continue | Review the form’s validation errors and complete uploads or manual questions |
 | Automatic run pauses | Fix the question in the form, then click Continue all sections |
-| Google’s picker needs a file | Download a blank file from Questions & blank files, then select it manually |
-| An upload window is already open | Finish or close it before starting automatic filling, so FormPass can open the correct question’s picker |
+| Google’s picker needs a file | Click Generate blank file in FormPass, then Browse and select it from Downloads |
+| An upload window is already open | Generate a file, then select it manually; only the optional automatic attachment mode requires closing an existing picker |
 | Upload remains unconfirmed | Finish it manually, or close the picker and Clear this page before retrying |
 | Temporary count remains | Return to earlier sections, or manually clear the remaining selections |
 

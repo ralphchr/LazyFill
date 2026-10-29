@@ -24,10 +24,16 @@ const html = await readFile('dist/popup.html', 'utf8')
 const scriptPath = html.match(/<script[^>]*src="([^"]+)"/)?.[1]
 assert.ok(scriptPath, 'Packaged popup must reference its bundle')
 const popupScript = await readFile(`dist/${scriptPath.replace(/^\.\//, '')}`, 'utf8')
-function openPopup() {
+const generatedFiles = []
+const downloadedFiles = []
+function openPopup(tabUrl = form.window.location.href) {
   const popup = new JSDOM(html, { url: 'https://extension.test/popup.html', runScripts: 'outside-only', pretendToBeVisual: true })
+  popup.window.TextEncoder = TextEncoder
+  popup.window.URL.createObjectURL = file => { generatedFiles.push(file); return `blob:https://extension.test/generated-${generatedFiles.length}` }
+  popup.window.URL.revokeObjectURL = () => {}
+  popup.window.HTMLAnchorElement.prototype.click = function () { downloadedFiles.push({ href: this.href, name: this.download }) }
   popup.window.chrome = {
-    tabs: { query: async () => [{ id: 1, url: form.window.location.href }], sendMessage: async (_id, message) => request(message) },
+    tabs: { query: async () => [{ id: 1, url: tabUrl }], sendMessage: async (_id, message) => request(message) },
     storage,
   }
   popup.window.eval(popupScript)
@@ -47,6 +53,19 @@ assert.match(doc.body.textContent, /Application preview/)
 assert.equal(doc.querySelectorAll('.profile-grid input').length, 5)
 assert.equal(doc.querySelector('input[name=contact]').value, '0')
 assert.equal(doc.querySelectorAll('.questions').length, 1)
+assert.ok(doc.querySelector('.generate-file'))
+assert.equal(doc.querySelector('.file-generator').closest('details'), null)
+const format = doc.querySelector('[aria-label="Blank file type"]')
+format.value = 'pdf'
+format.dispatchEvent(new popup.window.Event('change', { bubbles: true }))
+await new Promise(resolve => setTimeout(resolve, 0))
+doc.querySelector('.generate-file').click()
+await until(() => doc.querySelector('.success')?.textContent.includes('Generated'), 'The extension must generate a downloadable blank file')
+assert.equal(generatedFiles[0].type, 'application/pdf')
+assert.ok(generatedFiles[0].size > 0)
+assert.match(downloadedFiles[0].name, /^formpass-blank-[a-f0-9]{6}\.pdf$/)
+assert.equal(stored.settings.fileMode, 'download')
+assert.equal(stored.settings.attachFiles, false)
 const tool = text => [...doc.querySelectorAll('.tools button')].find(button => button.textContent === text)
 tool('Fill this page').click()
 await until(() => doc.querySelector('.success')?.textContent.includes('3 temporary answers filled'), 'Fill this page must reach the packaged content script')
@@ -88,6 +107,11 @@ assert.equal(submits, 0)
 const reopened = openPopup()
 await until(() => reopened.window.document.querySelector('.run-status.complete'), 'Reopened popup must recover completed progress')
 reopened.window.close()
+const independent = openPopup('https://example.com')
+await until(() => independent.window.document.querySelector('.generate-file')?.disabled === false, 'File generation must be available without a Google Form')
+independent.window.document.querySelector('.generate-file').click()
+await until(() => downloadedFiles.length === 2, 'File generation must work on an unsupported tab')
+independent.window.close()
 form.window.close()
 // Exercise the actual bundle against a separate Google-style picker frame.
 const uploadForm = new JSDOM('<form><div role="listitem" data-item-id="resume"><div role="heading">Resume *</div><button type="button">Add file</button></div><input type="hidden" name="entry.123"><button type="button" jsname="M2UYVd">Submit</button></form>', { url: 'https://docs.google.com/forms/d/e/picker-package-test/viewform', runScripts: 'outside-only' })
@@ -121,10 +145,11 @@ uploadForm.window.document.querySelector('[role=listitem] button').addEventListe
 })
 uploadForm.window.eval(await readFile('dist/content.js', 'utf8'))
 const uploadRequest = message => new Promise(resolve => uploadListener(message, { id: 'package-test' }, resolve))
-await uploadRequest({ type: 'START', settings: stored.settings })
-await until(async () => (await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.automation.status === 'complete', 'Packaged runner must complete a confirmed Google picker upload')
+const automaticFiles = { ...stored.settings, fileMode: 'attach', attachFiles: true }
+await uploadRequest({ type: 'START', settings: automaticFiles })
+await until(async () => (await uploadRequest({ type: 'SCAN', settings: automaticFiles })).scan.automation.status === 'complete', 'Explicit automatic attachment must remain available')
 assert.equal(uploadedFile.type, 'application/pdf')
 assert.equal(uploadSubmits, 0)
-assert.equal((await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.temporaryCount, 1)
+assert.equal((await uploadRequest({ type: 'SCAN', settings: automaticFiles })).scan.temporaryCount, 1)
 uploadForm.window.close()
-console.log('Packaged extension passed: popup, fill/clear, outline, navigation after popup closure, confirmed picker upload, and no submission.')
+console.log('Packaged extension passed: visible file generation/download, manual file defaults, fill/clear, navigation, optional picker upload, and no submission.')

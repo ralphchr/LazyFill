@@ -107,7 +107,7 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
       // Prefer valid blank documents/images over zero-byte text in Google's uploader.
       if (kind === 'random' && formats.some(format => format !== 'txt')) formats = formats.filter(format => format !== 'txt')
       const format = randomChoice(formats)
-      if (!format) return { ok: false, message: 'This question does not accept the selected blank file type. Choose an allowed format under Questions & blank files.' }
+      if (!format) return { ok: false, message: 'This question does not accept the selected blank file type. Choose an allowed format beside Generate blank file.' }
       file = makeBlankFile(format)!
       const maxSize = Number(limits.get('maxSizeBytesPerItem'))
       if (maxSize > 0 && file.size > maxSize) return { ok: false, message: 'The blank file exceeds this question’s file-size limit.' }
@@ -119,7 +119,7 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
       const dropTarget = browse?.closest<HTMLElement>('[role="group"]') || browse?.parentElement
       if (!input && !dropTarget) { await pause(); continue }
       const Drag = picker.defaultView!.DragEvent
-      if (!input && !Drag) return { ok: false, message: 'This picker cannot accept an automatic drop. Use Download blank and select the file manually.' }
+      if (!input && !Drag) return { ok: false, message: 'This picker cannot accept an automatic drop. Use Generate blank file and select the download manually.' }
       prepared?.(file)
       progress?.(`Uploading ${file.name}…`)
       if (input) {
