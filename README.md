@@ -4,7 +4,7 @@
 
 **Your answers can wait. Your planning doesn’t have to.**
 
-Preview the questions ahead in a Google Form, then use temporary answers to explore at your own pace.
+Set your common placeholders once. Let FormPass fill the remaining sections and stop before Submit.
 
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-234f42?style=flat-square)
 ![React](https://img.shields.io/badge/React-19-234f42?style=flat-square)
@@ -19,16 +19,17 @@ Preview the questions ahead in a Google Form, then use temporary answers to expl
 
 You open an application form. The first section wants your final details and a PDF you’re still polishing. You just want to know what comes next.
 
-**FormPass gives you two ways forward:** read the available sections without answering anything, or fill blank fields with editable placeholders and use the form’s **Next** button.
+**FormPass gives you two ways forward:** read the available questions without answering anything, or run automatic filling from the current section to the final page.
 
 ### What you can do
 
-- **Look ahead:** browse available sections, questions, choices, descriptions, required markers, and grid rows in a read-only outline.
-- **Preview before filling:** edit each proposed temporary answer or leave it empty to skip the field.
-- **Keep your work:** existing answers stay in place; blank optional questions are skipped by default.
-- **Set your defaults:** save your preferred text, paragraph, email, number, and website placeholders on your device.
-- **Clean up:** clear unchanged temporary answers on the current page. Tracking follows the form through navigation in the same tab.
-- **Stay aware:** an on-page notice marks temporary answers. Recognized Submit actions are blocked while tracked answers remain.
+- **Set four placeholders:** name, birthday, Gmail/email, and age. Common English question labels are matched automatically, including first and last names.
+- **Use a dot for the rest:** ordinary short answers and paragraphs get `.`. Numbers, dates, and URLs use valid placeholder formats.
+- **Randomize choices:** radio buttons, checkboxes, dropdowns, and supported grid rows pick an available option at random. Existing selections stay in place.
+- **Run all remaining sections:** fill, click Next, and repeat—even when the popup closes or Google reloads the page. Stop at any time from the popup or the form banner.
+- **Use blank upload files:** generate a transparent PNG, blank PDF, or zero-byte TXT. Normal file inputs can attach them automatically; Google’s upload picker may require manual selection.
+- **Keep it simple:** one Run button, four profile inputs, and a collapsed **Questions & blank files** panel for secondary tools.
+- **Read ahead and clean up:** inspect available questions without uploads, or clear unchanged placeholders on the current page.
 
 ### Get started
 
@@ -50,58 +51,77 @@ npm run build
 ### How it works
 
 ```text
-Open a Google Form
-        │
-        ├── All sections ──→ Read ahead, including upload questions
-        │                   No answers or files needed
-        │
-        └── Current page ─→ Review temporary answers
-                            ↓
-                           Fill blank fields → Click the form’s Next button
-                            ↓
-                           Replace or clear placeholders before submitting
+Name · Birthday · Gmail · Age
+              ↓
+       Run all sections
+              ↓
+ Fill blanks → Next → Fill blanks → Next
+              ↓
+  Stop at the final page. Never submit.
 ```
 
-**All sections** reads question information already included in the loaded form page. It lists sections in document order, including branches you might not visit. It does not predict the route your answers will take, and it cannot reveal information Google has not supplied to your browser.
+1. Open your form and click **FormPass**.
+2. Edit the four placeholder values. These are saved locally when you run or fill a page.
+3. Click **Run all sections**. You can close the popup; the form tab continues the run.
+4. If the run pauses, resolve the question in the form and click **Continue all sections**.
+5. Replace or clear temporary answers before submitting your real response.
 
-**Current page** fills supported visible questions using normal input and selection events. Existing answers are checked again before filling. Custom validation may still need a value you supply yourself.
+The runner starts from the current section and follows the route chosen by existing answers or random options. It does not visit every conditional branch. Repeated sections, missing controls, blocked tab storage, and validation errors stop the run instead of retrying indefinitely. Inactive runs expire after ten minutes; runs also have a 100-section limit.
+
+**Fill this page** fills without navigating. **Clear this page** removes only unchanged tracked values. Expand **Questions & blank files** for upload downloads, optional-field preferences, and a read-only outline of available sections. The outline uses data already supplied by Google; it cannot reveal questions absent from the loaded page data.
+
+### Blank upload files
+
+| Format | Contents |
+| --- | --- |
+| PNG | Valid transparent 1×1 image |
+| PDF | Valid one-page PDF with an empty content stream |
+| TXT | Empty file, zero bytes |
+| Random | Randomly selects one of the supported formats |
+
+**Attach blank files where supported** is enabled by default. Automatic attachment uses ordinary file inputs and respects their accepted types. Existing files are preserved. To use Google’s picker, expand **Questions & blank files**, choose a format, click **Download blank**, select the downloaded file in the form, and continue the run.
+
+PNG and PDF files include the structure needed to open correctly, so they are not zero-byte files. Blank files can still be rejected by a form’s restrictions. Unsupported file formats need a file you supply yourself. Clearing a local input does not delete a file already uploaded to Google Drive.
 
 ### Supported questions
 
 | Question | Temporary filling | Read-ahead outline |
 | --- | --- | --- |
 | Short answer and paragraph | Yes | Yes |
-| Email, number, website inputs | Yes; editable defaults | Yes |
-| Multiple choice and linear scale | Choose one available option | Yes |
-| Checkboxes | Choose one available option | Yes |
-| Dropdown | Choose one available option | Yes |
-| Date, time, grids | Manual | Yes |
-| File upload | Manual | Yes |
+| Name, birthday, Gmail/email, age | Saved common placeholders | Yes |
+| Other email, number, website inputs | Valid placeholder formats | Yes |
+| Multiple choice and linear scale | One random available option | Yes |
+| Checkboxes | One random available option | Yes |
+| Dropdown | One random available option | Yes |
+| Native dates and recognized birthday components | Yes | Yes |
+| Grids with accessible choice rows | Random row choices; preserves answered rows | Yes |
+| Time and unrecognized composite controls | Manual | Yes |
+| File upload | Blank attachment on normal inputs; picker may be manual | Yes |
 
 Question outlines depend on Google exposing its embedded question data. Current-page filling remains available if that outline cannot be read.
 
 ### A few things to know
 
-**Uploads remain real uploads.** FormPass does not attach dummy files, bypass required uploads, or bypass sign-in. Use **All sections** to inspect later questions while your files are unfinished. To navigate inside the actual form, you must satisfy Google’s required-field checks.
+**Required checks still apply.** FormPass does not bypass required uploads or sign-in. Use the question outline to read ahead without uploading. Inside the actual form, required questions and Google’s validation must be satisfied before Next can advance.
 
-**Temporary answers can be autosaved by Google.** Replace or clear them before you leave a form or submit it. FormPass never clicks Next or Submit for you. Its submission protection recognizes Google’s known Submit button and common labels; treat it as an extra reminder, not a guarantee against every submission path.
+**Temporary answers can be autosaved by Google.** Replace or clear them before you leave a form or submit it. Automatic mode clicks Next but never Submit. Its additional submission guard recognizes Google’s known Submit button and common labels; treat it as an extra reminder, not a guarantee against every possible manual submission path.
 
 **Clearing is conservative.** It clears tracked values only when they still match the inserted placeholder. Visit earlier sections to clear their values. Some custom radio or dropdown selections need manual clearing if Google provides no usable reset control. If you replace a placeholder with a real answer, it is left alone.
 
-**Validation still applies.** Number ranges, answer patterns, checkbox minimums, “Other” choices, and form-specific rules can require manual edits. Date/time components and grids are left for you to answer.
+**Matching and validation have limits.** Profile matching uses common English labels. Number ranges, answer patterns, checkbox minimums, “Other” choices, time fields, and unrecognized grids can require manual edits. Existing answers are never replaced to make a placeholder pass validation.
 
 ### Privacy & permissions
 
-No backend, accounts, analytics, or external requests from the extension.
+No backend, accounts, analytics, or external file-generation service. Google may save drafts or uploaded files as it normally does when a form is edited.
 
 | Permission or storage | Purpose |
 | --- | --- |
 | `activeTab` | Identify the active form when you open the popup |
-| `storage` | Save placeholder preferences in `chrome.storage.local` |
+| `storage` | Save the profile and preferences in `chrome.storage.local` |
 | Content script on `https://docs.google.com/forms/*` | Read the form and fill supported respondent pages |
-| Form tab’s `sessionStorage` | Track only inserted temporary values across navigation in that tab |
+| Form tab’s `sessionStorage` | Track inserted values and run progress across navigation in that tab |
 
-Existing real answers are not copied into tracking storage. Session tracking is scoped to the form URL and tab; site scripts can access that tab’s site storage. If site storage is blocked, tracking lasts only for the current document. Clearing browser data or losing the session can remove tracking before Google’s saved draft is cleared.
+Existing real answers and file contents are not copied into tracking storage. Session tracking is scoped to the form URL and tab; site scripts can access that tab’s site storage. If site storage is blocked, automatic navigation is unavailable and manual filling tracks only the current document. Clearing browser data or losing the session can remove tracking before Google’s saved draft is cleared.
 
 ### Development
 
@@ -116,17 +136,17 @@ npm audit         # Dependency audit
 
 ```text
 src/
-  popup/             React popup, preview controls, settings
-  content-script/    Form detection, question scanning, filling, tracking, outline
-  shared/            Message types and placeholder defaults
+  popup/             Compact profile, Run/Stop, question outline, blank downloads
+  content-script/    Scanning, filling, tracking, automatic navigation, outline
+  shared/            Message types, profile matching, random choices, blank files
 scripts/package.mjs  Extension manifest, PNG icons, package checks
 tests/               Regression tests and a local browser fixture
 manifest.json        Source manifest (packaged into dist/)
 ```
 
-For a local UI walkthrough, run `npm run dev` and open `/tests/fixtures/popup.html` on the Vite server. The fixture uses a simulated form and extension API, so no live responses are sent.
+For a local UI walkthrough, run `npm run dev` and open `/tests/fixtures/popup.html` on the Vite server. The fixture uses a simulated form and extension API, so no live responses are sent. Its **Simulate completed upload** button lets a paused run continue to the next test section.
 
-Before using a new build on an important form, try a form you own: check text, choices, dropdowns, Next/Back, custom validation, replacement, clearing, and the final Submit guard. Google’s page markup and embedded data format are undocumented and may change.
+The packaged smoke test checks filling, clearing, read-ahead, automation after popup closure, and stopping before submission. Before using a new build on an important form, try a form you own: Google’s page markup, picker, and embedded data format are undocumented and may change.
 
 ### Troubleshooting
 
@@ -137,6 +157,8 @@ Before using a new build on an important form, try a form you own: check text, c
 | Form not detected | Use a respondent `viewform` link, finish sign-in, and wait for questions to load |
 | No section outline | Reload; some forms do not expose readable question data |
 | Next still refuses to continue | Review the form’s validation errors and complete uploads or manual questions |
+| Automatic run pauses | Fix the question in the form, then click Continue all sections |
+| Google’s picker needs a file | Download a blank file from Questions & blank files, then select it manually |
 | Temporary count remains | Return to earlier sections, or manually clear the remaining selections |
 
 ---
