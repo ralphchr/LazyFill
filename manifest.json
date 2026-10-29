@@ -1,26 +1,19 @@
 {
   "manifest_version": 3,
   "name": "FormPass",
-  "version": "0.0.1",
-  "description": "Detects Google Forms and assists with form filling",
-  "permissions": ["activeTab"],
-  "host_permissions": ["https://*.google.com/*"],
+  "version": "0.1.0",
+  "description": "Preview Google Form sections and fill blank fields with temporary answers while you prepare your real response.",
+  "permissions": ["activeTab", "storage"],
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["https://docs.google.com/forms/*"],
       "js": ["content.js"],
-      "css": ["content-script.css"],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "48": "public/icons.svg"
-    }
-  },
-  "background": {
-    "service_worker": "background.js"
+    "default_title": "FormPass",
+    "default_popup": "popup.html"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

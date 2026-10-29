@@ -1,5 +1,4 @@
 import Popup from './popup/popup.tsx'
-import './App.css'
 
 function App() {
   return (
