@@ -16,6 +16,7 @@
     </section>
     <script type="module">
       import { FormEngine } from '/src/content-script/engine.ts'
+      import { FormAutomation } from '/src/content-script/automation.ts'
       const data = [null, [null, [
         [1, 'Full name', null, 0, [[11, null, 1]]],
         [2, 'Email', null, 0, [[12, null, 1]]],
@@ -34,18 +35,31 @@
       document.body.append(script)
       const engine = new FormEngine(document, 'https://docs.google.com/forms/d/e/local-test/viewform', sessionStorage)
       engine.installGuards()
-      const settings = JSON.parse(localStorage.getItem('formpass-demo-settings') || '{}')
+      const automation = new FormAutomation(engine, document, 'https://docs.google.com/forms/d/e/local-test/viewform', sessionStorage)
+      const scan = settings => ({ ...engine.scan(settings), automation: automation.status() })
+      const form = document.querySelector('section form')
+      const next = form.querySelector('[jsname="OCpkoe"]')
+      next.addEventListener('click', () => {
+        if (!form.checkValidity()) return
+        form.innerHTML = '<div role="listitem" data-item-id="experience"><div role="heading">Tell us about your work *</div><textarea required></textarea></div><div role="listitem" data-item-id="birthday"><div role="heading">Birthday *</div><input type="date" required></div><div role="listitem" data-item-id="age"><div role="heading">Age *</div><input type="number" required></div><button type="button" jsname="M2UYVd">Submit</button>'
+      })
+      const demoUpload = document.createElement('button')
+      demoUpload.textContent = 'Simulate completed upload'
+      demoUpload.onclick = () => { const file = form.querySelector('input[type="file"]'); if (file) file.disabled = true }
+      document.querySelector('section').append(demoUpload)
       globalThis.chrome = {
         tabs: {
           query: async () => [{ id: 1, url: 'https://docs.google.com/forms/d/e/local-test/viewform' }],
           sendMessage: async (_id, message) => {
             let result
+            if (message.type === 'START') automation.start(message.settings)
+            if (message.type === 'STOP') automation.stop()
             if (message.type === 'FILL') result = await engine.fill(message.settings, message.values)
             if (message.type === 'CLEAR') result = await engine.clear()
-            return { ok: true, message: result, scan: engine.scan(message.settings) }
+            return { ok: true, message: result, scan: scan(message.settings) }
           },
         },
-        storage: { local: { get: async () => ({ settings }), set: async ({ settings }) => localStorage.setItem('formpass-demo-settings', JSON.stringify(settings)) } },
+        storage: { local: { get: async () => ({ settings: JSON.parse(localStorage.getItem('formpass-demo-settings') || '{}') }), set: async ({ settings }) => localStorage.setItem('formpass-demo-settings', JSON.stringify(settings)) } },
       }
       await import('/src/main.tsx')
     </script>

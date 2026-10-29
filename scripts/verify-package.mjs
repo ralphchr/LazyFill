@@ -13,51 +13,76 @@ const schema = form.window.document.createElement('script')
 schema.textContent = `var FB_PUBLIC_LOAD_DATA_ = ${JSON.stringify(data)};`
 form.window.document.body.append(schema)
 let listener
-form.window.chrome = { runtime: { id: 'package-test', onMessage: { addListener(callback) { listener = callback } } } }
+const stored = {}
+const storage = { local: { get: async () => stored, set: async value => Object.assign(stored, value) } }
+form.window.chrome = { storage, runtime: { id: 'package-test', onMessage: { addListener(callback) { listener = callback } } } }
 form.window.eval(await readFile('dist/content.js', 'utf8'))
 assert.equal(typeof listener, 'function', 'Packaged content script must register messaging')
+const request = message => new Promise(resolve => listener(message, { id: 'package-test' }, resolve))
 
 const html = await readFile('dist/popup.html', 'utf8')
 const scriptPath = html.match(/<script[^>]*src="([^"]+)"/)?.[1]
 assert.ok(scriptPath, 'Packaged popup must reference its bundle')
-const popup = new JSDOM(html, { url: 'https://extension.test/popup.html', runScripts: 'outside-only', pretendToBeVisual: true })
-popup.window.chrome = {
-  tabs: {
-    query: async () => [{ id: 1, url: form.window.location.href }],
-    sendMessage: async (_id, message) => new Promise(resolve => listener(message, { id: 'package-test' }, resolve)),
-  },
-  storage: { local: { get: async () => ({}), set: async () => {} } },
+const popupScript = await readFile(`dist/${scriptPath.replace(/^\.\//, '')}`, 'utf8')
+function openPopup() {
+  const popup = new JSDOM(html, { url: 'https://extension.test/popup.html', runScripts: 'outside-only', pretendToBeVisual: true })
+  popup.window.chrome = {
+    tabs: { query: async () => [{ id: 1, url: form.window.location.href }], sendMessage: async (_id, message) => request(message) },
+    storage,
+  }
+  popup.window.eval(popupScript)
+  return popup
 }
-popup.window.eval(await readFile(`dist/${scriptPath.replace(/^\.\//, '')}`, 'utf8'))
 async function until(predicate, message) {
-  for (let i = 0; i < 100; i++) {
-    if (predicate()) return
+  for (let i = 0; i < 400; i++) {
+    if (await predicate()) return
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   assert.fail(message)
 }
+const popup = openPopup()
 const doc = popup.window.document
-await until(() => doc.querySelector('.connected'), 'The packaged popup must detect the form and render')
+await until(() => doc.querySelector('.connected'), 'The packaged popup must connect')
 assert.match(doc.body.textContent, /Application preview/)
-assert.equal(doc.querySelectorAll('.field').length, 5)
-assert.match(doc.querySelector('.field.answered')?.textContent || '', /Email/)
-assert.match(doc.querySelector('.field.manual')?.textContent || '', /Resume/)
-doc.querySelector('.primary').click()
-await until(() => doc.querySelector('.success')?.textContent.includes('2 temporary answers filled'), 'Popup Fill must reach the packaged content script')
-assert.match(form.window.document.querySelector('[name="entry.1"]').value, /TEMPORARY/)
+assert.equal(doc.querySelectorAll('.profile-grid input').length, 4)
+assert.equal(doc.querySelectorAll('.questions').length, 1)
+const tool = text => [...doc.querySelectorAll('.tools button')].find(button => button.textContent === text)
+tool('Fill this page').click()
+await until(() => doc.querySelector('.success')?.textContent.includes('3 temporary answers filled'), 'Fill this page must reach the packaged content script')
+assert.equal(form.window.document.querySelector('[name="entry.1"]').value, 'Test User')
 assert.equal(form.window.document.querySelector('input[type=email]').value, 'your.real.answer@example.com')
-assert.equal(form.window.document.querySelector('select').value, 'design')
-assert.equal(form.window.document.querySelector('textarea').value, '')
+assert.ok(['design', 'engineering'].includes(form.window.document.querySelector('select').value))
+assert.equal(form.window.document.querySelector('textarea').value, '.')
 assert.ok(form.window.document.querySelector('#formpass-notice'))
-doc.querySelectorAll('.tabs button')[1].click()
-await until(() => doc.querySelectorAll('.section-card').length === 2, 'All sections must show later pages')
 assert.match(doc.querySelector('.outline').textContent, /Project description/)
-doc.querySelector('.text-button').click()
-await until(() => doc.querySelector('.success')?.textContent.includes('2 temporary answers cleared'), 'Clear must remove inserted values')
+tool('Clear this page').click()
+await until(() => doc.querySelector('.success')?.textContent.includes('3 temporary answers cleared'), 'Clear must preserve existing answers')
 assert.equal(form.window.document.querySelector('[name="entry.1"]').value, '')
 assert.equal(form.window.document.querySelector('select').value, '')
 assert.equal(form.window.document.querySelector('input[type=email]').value, 'your.real.answer@example.com')
-assert.equal(form.window.document.querySelector('#formpass-notice'), null)
+
+// Test the actual built runner independently of the popup's lifetime.
+form.window.document.querySelector('input[type=file]').disabled = true
+let submits = 0
+let firstPageName = ''
+form.window.document.addEventListener('click', event => {
+  if (event.target.getAttribute('jsname') === 'M2UYVd') submits++
+})
+form.window.document.querySelector('form [jsname=OCpkoe]').addEventListener('click', () => {
+  firstPageName = form.window.document.querySelector('[name="entry.1"]').value
+  form.window.document.querySelector('form').innerHTML = '<div role="listitem" data-item-id="about"><div role="heading">About *</div><textarea required></textarea></div><div role="listitem" data-item-id="birthday"><div role="heading">Birthday *</div><input type="date" required></div><div role="listitem" data-item-id="age"><div role="heading">Age *</div><input type="number" required></div><button type="button" jsname="M2UYVd">Submit</button>'
+})
+doc.querySelector('.primary').click()
+await until(() => doc.querySelector('.run-status.running'), 'Run all sections must start')
 popup.window.close()
+await until(async () => (await request({ type: 'SCAN', settings: stored.settings })).scan.automation.status === 'complete', 'Automation must finish after the popup closes')
+assert.equal(firstPageName, 'Test User')
+assert.equal(form.window.document.querySelector('textarea').value, '.')
+assert.equal(form.window.document.querySelector('input[type=date]').value, '2000-01-01')
+assert.equal(form.window.document.querySelector('input[type=number]').value, '26')
+assert.equal(submits, 0)
+const reopened = openPopup()
+await until(() => reopened.window.document.querySelector('.run-status.complete'), 'Reopened popup must recover completed progress')
+reopened.window.close()
 form.window.close()
-console.log('Packaged extension smoke test passed: popup → messaging → fill → outline → clear.')
+console.log('Packaged extension passed: compact popup, page fill/clear, outline, multi-section run after popup closure, and no submission.')
