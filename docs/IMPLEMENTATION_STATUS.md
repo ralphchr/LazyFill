@@ -1,46 +1,9 @@
-# FormPass Implementation Status
+# Implementation status — 0.1.0
 
-## Foundation
+Implemented: reproducible Manifest V3 packaging, respondent-form detection, editable preview, configurable local placeholders, required/optional handling, existing-answer preservation, native text and choice filling, Google-style radio/checkbox/dropdown events, temporary-value tracking across same-tab navigation, conservative clearing, a temporary-answer notice, recognized Submit protection, and a read-only section outline from embedded question data.
 
-- [x] Repository initialized
-- [x] Vite configured
-- [x] React configured
-- [x] TypeScript configured
-- [x] Manifest V3 configured
-- [x] Edge extension loads
-- [x] Popup renders
-- [x] Google Forms detection works
+Manual: file uploads, dates, times, grids, unsupported controls, and form-specific validation that a supplied placeholder does not satisfy. Navigation stays under user control.
 
-## Google Forms
+Limitations: Google's DOM and embedded schema are undocumented. Outlines list available sections rather than predicting conditional routing. Site session storage may be blocked or cleared. Radio/dropdown resets depend on available form controls. Submission protection is a best-effort reminder for recognized submit actions, not a universal interception mechanism.
 
-- [x] Form detection
-- [ ] Question scanning
-- [ ] Required-field detection
-- [ ] Field classification
-
-## Placeholders
-
-- [ ] Text placeholder
-- [ ] Paragraph placeholder
-- [ ] Email placeholder
-- [ ] Number placeholder
-- [ ] Multiple-choice placeholder
-- [ ] Checkbox placeholder
-- [ ] Dropdown placeholder
-- [ ] Image placeholder
-- [ ] PDF placeholder
-- [ ] Generic file placeholder
-
-## Temporary Session
-
-- [ ] Temporary value tracking
-- [ ] Clear temporary values
-- [ ] Detect user replacement
-- [ ] Preview before filling
-
-## Safety
-
-- [x] Never automatically submit
-- [x] No CAPTCHA bypass
-- [x] No backend
-- [x] Local-first storage
+Automated validation: DOM fixtures cover detection, preservation, validation rollback, choice events, clearing, reload tracking, blocked storage, prior-section tracking, outline parsing, settings validation, and Submit/Next behavior. These fixtures do not replace testing against a real Google Form in Edge or Chrome.
