@@ -1,188 +1,149 @@
-<div align="center">
+# FormPass
 
-![FormPass — look ahead, finish when you're ready](docs/banner.svg)
+**Inspect and prepare multi-section Google Forms before finalizing your response.**
 
-**Your answers can wait. Your planning doesn’t have to.**
+FormPass is a Microsoft Edge and Google Chrome extension for reviewing form requirements while your information and documents are still being prepared. It provides question outlines, reusable placeholder values, a local temporary-file library, and automatic navigation through supported sections.
 
-Set your common placeholders once. Let FormPass fill the remaining sections and stop before Submit.
+Automatic navigation stops before submission and pauses when a required upload or validation issue needs your attention.
 
-![Manifest V3](https://img.shields.io/badge/Manifest-V3-355f43?style=flat-square)
-![React](https://img.shields.io/badge/React-19-355f43?style=flat-square)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-355f43?style=flat-square)
-![Edge + Chrome](https://img.shields.io/badge/Edge_%2B_Chrome-supported-bbccaa?style=flat-square&labelColor=355f43)
+[Installation](#installation) · [Usage](#usage) · [Temporary files](#temporary-files) · [Limitations](#limitations) · [Development](#development)
 
-[Get started](#get-started) · [How it works](#how-it-works) · [Supported questions](#supported-questions) · [Development](#development)
+## Features
 
-</div>
+- **Question preview:** inspect available section and question outlines without entering answers or uploading documents.
+- **Reusable profile:** save placeholders for name, email, contact number, birthday, and age.
+- **Section automation:** fill supported unanswered fields and advance through one route of the form. Progress continues after the popup closes and across page loads.
+- **Temporary-file management:** select files from your device, retain them locally, and assign a specific file to an upload question.
+- **Controlled continuation:** pause for missing required files, validation failures, unsupported controls, or repeated sections. Continue from the current section after resolving the issue.
+- **Answer preservation:** retain existing responses and clear only tracked placeholders that remain unchanged.
 
----
+## Installation
 
-You open an application form. The first section wants your final details and a PDF you’re still polishing. You just want to know what comes next.
+### Requirements
 
-**FormPass gives you two ways forward:** read the available questions without answering anything, or run automatic filling from the current section to the final page.
+- Node.js 24 or later and npm.
+- A desktop version of Microsoft Edge or Google Chrome.
 
-### What you can do
-
-- **Set five placeholders:** name, contact number, birthday, Gmail/email, and age. Common English question labels are matched automatically, including first/last names and phone/mobile labels.
-- **Match the field’s format:** ordinary text gets `.`, number-only fields get `0`, and alphanumeric-only fields get a value such as `A0`. Common patterns, input hints, instructions, and embedded Google validation are checked where available. Fixed-length numeric codes use repeated zeros.
-- **Randomize choices:** radio buttons, checkboxes, dropdowns, and supported grid rows pick an available option at random. Existing selections stay in place.
-- **Run all remaining sections:** fill, click Next, and repeat—even when the popup closes or Google reloads the page. Stop at any time from the popup or the form banner.
-- **Bring your temporary files:** choose files from your device inside the extension. FormPass uses your original files for compatible upload questions, or a specific file you assign to a question.
-- **Pause for missing uploads:** required files block Next until an attachment is confirmed. Choose the missing file in FormPass, or upload directly in the form, then Continue.
-- **A quieter workspace:** a soft ivory dashboard with muted green accents, compact profile fields, a visible file library, and secondary tools inside Questions & options.
-- **Read ahead and clean up:** inspect available questions without uploads, or clear unchanged placeholders on the current page.
-
-### Get started
-
-Requires **Node.js 24+** and a current desktop version of **Microsoft Edge or Google Chrome**.
+### Build the extension
 
 ```sh
+git clone https://github.com/ralphchr/formpass.git
+cd formpass
 npm ci
 npm run build
 ```
 
+### Load in your browser
+
 1. Open `edge://extensions` or `chrome://extensions`.
 2. Enable **Developer mode**.
-3. Choose **Load unpacked**, then select this project’s **`dist`** folder.
-4. Open a Google Form’s respondent link. If it was already open, **reload the form**.
-5. Click **FormPass** in your browser’s extensions menu. Pin it for easier access.
+3. Select **Load unpacked** and choose the generated **`dist`** directory.
+4. Open a Google Form respondent link and complete any required sign-in.
+5. Reload the form, then open **FormPass** from the browser's extensions menu.
 
-> Load **`dist/`**, not the repository root. The build packages the popup, content script, local-file worker, manifest, and PNG icons together. After changing source files, rebuild, reload the extension, and reload the form.
+After an update, rebuild the project, reload the extension, and refresh the form tab. Load the `dist` directory rather than the repository root.
 
-### How it works
+## Usage
 
-```text
-Name · Contact · Birthday · Gmail · Age
-              ↓
-       Run all sections
-              ↓
- Fill blanks → Next → Fill blanks → Next
-              ↓
-  Stop at the final page. Never submit.
-```
+1. Enter your placeholder profile in FormPass.
+2. Add any files you intend to use under **Temporary files**. Where necessary, assign a file to a specific question.
+3. Select **Run all sections**. FormPass fills supported unanswered fields and advances through the form.
+4. If the run pauses, resolve the indicated requirement and select **Continue all sections**.
+5. Review and replace temporary responses and attachments before submitting your final response yourself.
 
-1. Open your form and click **FormPass**.
-2. Edit the five placeholder values. These are saved locally when you run or fill a page.
-3. Under **Temporary files**, click **Upload temporary files** or drop files into the panel. Select a specific file for each current upload question if needed.
-4. Click **Run all sections**. You can close the popup; the form tab continues the run. Required uploads pause it until you provide a compatible file and its attachment is confirmed. Click **Continue all sections** after resolving a pause.
-5. Replace or clear temporary answers before submitting your real response.
+Use **Stop automation** to pause a run. Under **Questions & options**, use **Fill this page** to fill without navigating, **Clear this page** to remove unchanged tracked placeholders, or **Refresh** to rescan the current section.
 
-The runner starts from the current section and follows the route chosen by existing answers or random options. It does not visit every conditional branch. Repeated sections, missing controls, blocked tab storage, and validation errors stop the run instead of retrying indefinitely. Inactive runs expire after ten minutes; runs also have a 100-section limit.
+### Supported fields
 
-**Fill this page** fills and attaches selected files without navigating. **Clear this page** removes only unchanged tracked values. Expand **Questions & options** for preferences, page tools, and a read-only outline of available sections. The outline uses data already supplied by Google; it cannot reveal questions absent from the loaded page data.
-
-### Temporary file library
-
-1. Choose **Upload temporary files** and select the files you want to use. Drag and drop also works. Files are saved locally in the extension and remain available after closing its popup or navigating to another section.
-2. For each upload question on the current page, choose a specific file or leave **First compatible file** selected. A compatible library file may be reused for multiple questions. Explicit assignments are respected; an unavailable assigned file does not silently fall back to another one.
-3. Run or Continue. FormPass checks accepted formats and file-size limits, sends the original file through the normal input or Google upload picker, and waits for attachment confirmation before Next.
-
-**A missing required file always pauses automation.** Clicking Continue without supplying it leaves the run paused. Optional uploads can remain empty. You can also upload directly in Google Forms, then Continue.
-
-Close an already-open picker before starting automatic attachment. If a picker cannot be accessed, upload your selected file directly in the form. An unconfirmed attempt is never retried blindly: finish it, or close the picker and use **Clear this page** to reset it before retrying.
-
-**Opening the upload window is not an upload confirmation.** The banner reports opening, waiting for Google's controls, preparing your selected file, passing it to Google, and waiting for attachment confirmation as separate stages. Version 0.3.2 fixes a loading bug where the picker replaced its initial document while FormPass kept watching the empty page. Inaccessible or unrecognized picker variants still need a manual Browse upload; live Google upload compatibility is not guaranteed by the simulated tests.
-
-The extension does not generate decoy files. It keeps your selected files' names, types, and contents unchanged. **Remove** deletes a file from the local library; it does not remove a file already attached to a form or stored in Google Drive. Clearing a form attachment does not delete its Drive file. Browser storage limits and Google’s restrictions still apply.
-
-### Supported questions
-
-| Question | Temporary filling | Read-ahead outline |
-| --- | --- | --- |
-| Short answer and paragraph | Yes | Yes |
-| Name, contact number, birthday, Gmail/email, age | Saved common placeholders | Yes |
-| Other number-only fields | `0`, or repeated zeros for a required length | Yes |
-| Alphanumeric-only fields | Letters and digits, adapted to common length/case rules | Yes |
-| Other email and website inputs | Valid placeholder formats | Yes |
-| Multiple choice and linear scale | One random available option | Yes |
-| Checkboxes | One random available option | Yes |
-| Dropdown | One random available option | Yes |
-| Native dates and recognized birthday components | Yes | Yes |
-| Grids with accessible choice rows | Random row choices; preserves answered rows | Yes |
-| Time and unrecognized composite controls | Manual | Yes |
-| File upload | Attach a user-selected temporary file; required missing uploads pause the run | Yes |
-
-Question outlines depend on Google exposing its embedded question data. Current-page filling remains available if that outline cannot be read.
-
-### A few things to know
-
-**Required checks still apply.** FormPass does not bypass required uploads or sign-in. Use the question outline to read ahead without uploading. Inside the actual form, required questions and Google’s validation must be satisfied before Next can advance.
-
-**Temporary answers can be autosaved by Google.** Replace or clear them before you leave a form or submit it. Automatic mode clicks Next but never Submit. Its additional submission guard recognizes Google’s known Submit button and common labels; treat it as an extra reminder, not a guarantee against every possible manual submission path.
-
-**Clearing is conservative.** It clears tracked values only when they still match the inserted placeholder. Visit earlier sections to clear their values. Some custom radio or dropdown selections need manual clearing if Google provides no usable reset control. If you replace a placeholder with a real answer, it is left alone.
-
-**Matching and validation have limits.** Profile matching uses common English labels. Number ranges, answer patterns, checkbox minimums, “Other” choices, time fields, and unrecognized grids can require manual edits. Existing answers are never replaced to make a placeholder pass validation.
-
-Age and contact-number questions use their saved profile values. For number-only contact fields, formatting characters such as spaces, `+`, and dashes are removed; the default contact placeholder is `0`. Zero placeholders still have to satisfy the form’s range rules—a field requiring a positive number will pause for your input. Complex or unavailable validation rules may also need manual completion.
-
-### Privacy & permissions
-
-No backend, accounts, or analytics. Files you select are stored in the extension's local IndexedDB and sent to Google only when attaching them to a form. Google may save drafts or uploaded files as it normally does when a form is edited.
-
-| Permission or storage | Purpose |
+| Field or question | Behavior |
 | --- | --- |
-| `activeTab` | Identify the active form when you open the popup |
-| `storage` | Save the profile and preferences in `chrome.storage.local` |
-| Extension IndexedDB | Keep the files you explicitly choose until you remove them or clear extension data |
-| Local service worker | Read selected files in bounded chunks for attachment; no extra browser permissions |
-| Content script on `https://docs.google.com/forms/*` | Read the form and fill supported respondent pages |
-| Form tab’s `sessionStorage` | Track inserted values and run progress across navigation in that tab |
+| Name, email, contact number, birthday, and age | Uses the saved profile where labels or input types are recognized |
+| Other text and paragraph fields | Inserts `.` |
+| Number-only fields | Inserts `0`, repeated where a supported length rule requires it |
+| Alphanumeric fields | Uses a value such as `A0`, adapted to supported length and case rules |
+| Website inputs | Uses a valid URL placeholder |
+| Multiple choice, checkboxes, dropdowns, and linear scales | Selects an available option at random |
+| Supported grids | Fills unanswered rows with random choices |
+| Native dates and recognized birthday components | Uses the saved birthday |
+| File uploads | Attempts attachment of a selected compatible file; missing required uploads pause navigation |
+| Time fields and unrecognized composite controls | Requires manual completion |
 
-Existing real answers are not copied into tracking storage. File contents stay in extension storage; session tracking contains only attachment references and names. Session tracking is scoped to the form URL and tab; site scripts can access that tab’s site storage. If site storage is blocked, automatic navigation is unavailable and manual filling tracks only the current document. Clearing browser data or losing the session can remove tracking before Google’s saved draft is cleared.
+Age and contact fields retain their profile values. Supported numeric contact fields remove formatting characters. All inserted values remain subject to the form's validation.
 
-### Development
+## Temporary files
 
-```sh
-npm run dev       # Popup UI in Vite; extension APIs require the installed build
-npm test          # DOM-based filling, clearing, parsing, and guard regression tests
-npm run lint      # ESLint
-npm run check     # Lint + tests + build + packaged popup/content-script smoke test
-npm run build     # TypeScript + popup + content script + file worker + packaging
-npm audit         # Dependency audit
-```
+Select **Upload temporary files** or drag files into the extension. The library preserves their original names, types, and contents and remains available after closing the popup or navigating between sections.
+
+For each upload question, choose a specific file or use **First compatible file**. A compatible library file may be reused across questions. If an explicitly assigned file is removed, FormPass requires another selection rather than silently substituting a different file.
+
+**Automatic attachment through Google's upload window is experimental and has not been verified against the live upload service.** Opening that window does not confirm an upload. If automatic attachment fails, use **Browse** in Google's window to select the file directly, complete the attachment, and then select **Continue all sections**.
+
+Required uploads block navigation until an attachment is detected. Optional uploads may remain empty. FormPass checks available format and size restrictions and pauses when an upload remains unconfirmed.
+
+Removing a file from the extension library does not remove an existing Google Form attachment or delete a Drive file. FormPass does not generate decoy files.
+
+## Limitations
+
+- **Conditional routing:** each run follows one route determined by existing answers or random selections. It does not visit every branch.
+- **Question visibility:** outlines contain only the question data supplied by Google. Some forms do not expose a readable outline.
+- **Validation:** required answers, uploads, sign-in, numeric ranges, and custom rules still apply. Common English labels and supported patterns are recognized; other formats may need manual input.
+- **Navigation:** repeated sections, missing controls, and unavailable tab storage pause automation. Runs have a 100-section limit and expire after ten minutes of inactivity. Continue starts a fresh traversal from the current section.
+- **Google compatibility:** Google's form and picker markup can change. Automated fixtures do not establish compatibility with every live form or upload window.
+- **Drafts and submission:** Google may autosave temporary answers and attachments. Automatic navigation does not click Submit; the additional submission guard is a best-effort reminder for recognized controls.
+- **Clearing:** only unchanged tracked values are cleared. Earlier sections must be revisited, and some custom selections require manual removal. Losing tracking data does not clear Google's saved draft.
+
+## Privacy and permissions
+
+FormPass has no application backend, analytics, or separate account requirement. Selected files remain in extension storage until attached to a form or removed from the library. Google receives files when they are attached through its upload interface.
+
+| Access or storage | Purpose |
+| --- | --- |
+| `activeTab` | Identifies the active form when the popup opens |
+| `storage` | Stores profile values, file metadata, and preferences locally |
+| Content script on `https://docs.google.com/forms/*` | Reads supported respondent forms and fills their controls |
+| Extension IndexedDB | Retains files explicitly selected by the user |
+| Form tab's `sessionStorage` | Tracks temporary answers, attachment references, and run progress for that form and tab |
+
+Existing real answers are not copied into tracking storage. File contents are held in extension storage rather than the form's session storage. Site scripts can access the form tab's session storage. Browser storage limits apply, and clearing extension data removes the local file library.
+
+## Development
+
+Built with React, TypeScript, Vite, and Manifest V3.
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Starts the local Vite development server |
+| `npm run build` | Type-checks and packages the extension into `dist` |
+| `npm test` | Runs the regression test suite |
+| `npm run lint` | Runs ESLint |
+| `npm run check` | Runs lint, tests, build, and packaged integration checks |
+
+The local fixture at `/tests/fixtures/popup.html` provides a simulated form and extension API. It does not send live responses. The **Simulate completed upload** control resolves an upload blocker for navigation testing.
+
+Packaged integration checks cover popup messaging, local file persistence, exact file transfer through the worker, picker document replacement, required-upload pauses, attachment confirmation before Next, and exclusion of final submission. These checks use simulated Google upload windows.
+
+### Project structure
 
 ```text
 src/
-  popup/             Light workspace, profile, file library, Run/Stop, outline
-  content-script/    Scanning, filling, tracking, automatic navigation, outline
-  shared/            Profile matching, file storage, chunk transfer, file matching
-  background.ts      Selected-file bridge between local storage and the form
-scripts/package.mjs  Extension manifest, PNG icons, package checks
-tests/               Regression tests and a local browser fixture
-manifest.json        Source manifest (packaged into dist/)
+  popup/             Profile, file library, question outline, and run controls
+  content-script/    Form scanning, filling, navigation, and attachment handling
+  shared/            Types, validation, profile matching, and file storage
+  background.ts      Transfers selected-file data to the content script
+scripts/             Packaging and integration checks
+tests/               Regression tests and local fixtures
+manifest.json        Extension manifest
 ```
 
-For a local UI walkthrough, run `npm run dev` and open `/tests/fixtures/popup.html` on the Vite server. The fixture uses a simulated form and extension API, so no live responses are sent. Its **Simulate completed upload** button lets a paused run continue to the next test section.
+## Troubleshooting
 
-The packaged smoke test exercises the actual popup, worker, and content bundles together: selected-file storage, popup reopening, exact multi-chunk file contents, missing-file gates, picker confirmation before Next, continuation after popup closure, and stopping before submission. Google’s page markup, picker, and embedded data format are undocumented and may change. A simulated picker test does not verify Google’s live upload service.
-
-### Troubleshooting
-
-| Symptom | Try this |
+| Issue | Resolution |
 | --- | --- |
-| Blank popup or missing files | Build again and load `dist/`; remove the old root-folder installation |
-| “Reload the Google Form” | Reload the extension, then reload the form tab |
-| Form not detected | Use a respondent `viewform` link, finish sign-in, and wait for questions to load |
-| No section outline | Reload; some forms do not expose readable question data |
-| Next still refuses to continue | Review the form’s validation errors and complete uploads or manual questions |
-| Automatic run pauses | Fix the question in the form, then click Continue all sections |
-| Repeated section warning | Continue starts a fresh pass from the current section. If it returns again, change the answer that routes back to an earlier section |
-| Collected email was skipped in an older version | Reload the extension and form. Both Google's collected-email input and ordinary email questions use your saved Gmail / email placeholder |
-| A required file is missing | Upload a compatible file into the Temporary files panel, or directly in the form, then Continue |
-| The wrong library file is selected | Use the file selector under that question to assign the exact file you want |
-| Google rejects a file type or size | Close the picker and choose a compatible, smaller file before continuing |
-| Upload window opens but no file attaches | Update/reload the extension and form. If the banner says the controls are inaccessible, use Browse in Google's window to attach your file, then Continue |
-| An upload window is already open | Finish or close it, then Continue so FormPass opens the correct question’s picker automatically |
-| Upload remains unconfirmed | Finish it manually, or close the picker and Clear this page before retrying |
-| Temporary count remains | Return to earlier sections, or manually clear the remaining selections |
-
----
-
-<div align="center">
-
-**Prepare first. Answer with confidence.**
-
-Built for the moment between “I need to see the questions” and “I’m ready to send.”
-
-</div>
+| Popup cannot connect | Reload the extension, refresh the form tab, and reopen FormPass |
+| Form is not detected | Use a respondent `viewform` link, complete sign-in, and wait for the form to load |
+| Required file is missing | Add a compatible file to the library or attach it directly in the form, then Continue |
+| Upload window opens without an attachment | Use Browse in Google's window, complete the upload, then Continue |
+| File type or size is rejected | Choose a file that meets the question's restrictions |
+| Run returns to a previous section | Review the branching answer and Continue from the current section |
+| Upload remains unconfirmed | Finish the upload manually, or close the picker and use Clear this page before retrying |
+| Temporary answers remain tracked | Revisit earlier sections and clear unchanged placeholders or remaining selections |
