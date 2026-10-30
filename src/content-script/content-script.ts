@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener((message: Request, sender, sendResponse: (r
   if (message.type === 'STOP') { automation.stop(); sendResponse({ ok: true, scan: scan() }); return }
   if (message.type === 'SCAN') { sendResponse({ ok: true, scan: scan(normalizeSettings(message.settings)) }); return }
   if (automation.status().status === 'running') { sendResponse({ ok: false, message: 'Stop the current run before changing answers.' }); return }
-  if (busy) { sendResponse({ ok: false, message: 'A FormPass action is still running. Try again in a moment.' }); return }
+  if (busy) { sendResponse({ ok: false, message: 'A Lazy Fill action is still running. Try again in a moment.' }); return }
   busy = true
   void (async () => {
     try {

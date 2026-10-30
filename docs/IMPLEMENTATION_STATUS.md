@@ -1,4 +1,6 @@
-# Implementation status — 0.3.2
+# Implementation status — 0.3.3
+
+Product name: **Lazy Fill: GForms Autofill**, shortened to **Lazy Fill** inside the popup and status messages. Existing storage namespaces and identifiers are retained for compatibility with saved profiles, selected files, and in-progress form sessions.
 
 The popup uses a soft ivory dashboard design with muted green accents, compact profile fields, a visible temporary-file library, per-question file selectors, and a persistent Run/Continue/Stop action. The form banner and extension icons use the same light palette. Page tools and section outlines live inside Questions & options. No decoy generator, file-type randomizer, download fallback, or automatic generated-file preference remains.
 

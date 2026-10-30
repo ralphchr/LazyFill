@@ -22,9 +22,11 @@ function icon(size) {
   const pixels = Buffer.alloc(size * (size * 4 + 1))
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const px = x / size, py = y / size
-    const foreground = (px > .25 && px < .37 && py > .22 && py < .78)
-      || (px > .25 && px < .73 && py > .22 && py < .34)
-      || (px > .25 && px < .61 && py > .43 && py < .55)
+    const foreground = (px > .18 && px < .29 && py > .23 && py < .77)
+      || (px > .18 && px < .48 && py > .66 && py < .77)
+      || (px > .56 && px < .67 && py > .23 && py < .77)
+      || (px > .56 && px < .86 && py > .23 && py < .34)
+      || (px > .56 && px < .81 && py > .44 && py < .55)
     const offset = y * (size * 4 + 1) + 1 + x * 4
     pixels.set(foreground ? [53, 95, 67, 255] : [246, 245, 239, 255], offset)
   }
@@ -48,4 +50,4 @@ manifest.icons = icons
 manifest.action.default_icon = icons
 await writeFile('dist/manifest.json', `${JSON.stringify(manifest, null, 2)}\n`)
 for (const file of [manifest.action.default_popup, manifest.background.service_worker, ...manifest.content_scripts.flatMap(script => script.js)]) await access(`dist/${file}`)
-console.log('Packaged FormPass in dist/ — load this folder in Edge or Chrome.')
+console.log('Packaged Lazy Fill: GForms Autofill in dist/ — load this folder in Edge or Chrome.')

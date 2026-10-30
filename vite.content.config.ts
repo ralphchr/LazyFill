@@ -7,7 +7,7 @@ export default defineConfig({
     emptyOutDir: false,
     lib: {
       entry: 'src/content-script/content-script.ts',
-      name: 'FormPass',
+      name: 'LazyFill',
       formats: ['iife'],
       fileName: () => 'content.js',
     },

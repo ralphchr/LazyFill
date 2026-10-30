@@ -10,8 +10,8 @@ export async function loadTemporaryFile(metadata: TemporaryFile, active = () => 
   for (let offset = 0; offset < metadata.size || offset === 0; offset += UPLOAD_CHUNK_BYTES) {
     if (!active()) throw new Error('Upload stopped.')
     const response: FileChunkResponse = await chrome.runtime.sendMessage({ type: 'UPLOAD_CHUNK', id: metadata.id, offset } satisfies FileChunkRequest)
-    if (!response?.ok || typeof response.data !== 'string') throw new Error(response?.message || 'This temporary file is unavailable. Choose it again in FormPass.')
-    if (response.size !== metadata.size) throw new Error('The temporary file changed. Choose it again in FormPass.')
+    if (!response?.ok || typeof response.data !== 'string') throw new Error(response?.message || 'This temporary file is unavailable. Choose it again in Lazy Fill.')
+    if (response.size !== metadata.size) throw new Error('The temporary file changed. Choose it again in Lazy Fill.')
     const binary = atob(response.data)
     const expected = Math.min(UPLOAD_CHUNK_BYTES, metadata.size - offset)
     if (binary.length !== expected) throw new Error('Could not read the complete temporary file. Choose it again.')

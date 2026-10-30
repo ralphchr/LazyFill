@@ -4,6 +4,6 @@ export default defineConfig({
   publicDir: false,
   build: {
     outDir: 'dist', emptyOutDir: false,
-    lib: { entry: 'src/background.ts', name: 'FormPassFiles', formats: ['iife'], fileName: () => 'background.js' },
+    lib: { entry: 'src/background.ts', name: 'LazyFillFiles', formats: ['iife'], fileName: () => 'background.js' },
   },
 })

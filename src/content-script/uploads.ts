@@ -80,10 +80,10 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
   const active = options.active || (() => true)
   const pause = () => new Promise(resolve => doc.defaultView!.setTimeout(resolve, options.pollMs ?? 150))
   if (!active()) return { ok: false, cancelled: true }
-  if (pickerFrames(doc).length) return { ok: false, message: 'Close the open Google upload window, then Continue so FormPass can open the correct question’s picker.' }
+  if (pickerFrames(doc).length) return { ok: false, message: 'Close the open Google upload window, then Continue so Lazy Fill can open the correct question’s picker.' }
   const before = googleUploadValue(question, entryIds)
   if (before !== '[]') return { ok: true }
-  if (!files.length) return { ok: false, message: 'Choose a temporary file in FormPass, or upload directly in the form, then Continue.' }
+  if (!files.length) return { ok: false, message: 'Choose a temporary file in Lazy Fill, or upload directly in the form, then Continue.' }
   const started = Date.now()
   let message = ''
   const report = (next: string) => { if (message !== next) { message = next; progress?.(next) } }
@@ -114,7 +114,7 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
       // Wait for confirmation without reopening or sending the file again.
       await pause(); continue
     }
-    if (!sent && Date.now() - controlsStarted > (options.controlsTimeoutMs ?? 12000)) return { ok: false, message: 'Google’s upload window opened, but its file controls are not accessible to FormPass. Use Browse to attach your file in that window, then Continue. Automation remains paused until the form has an attachment.' }
+    if (!sent && Date.now() - controlsStarted > (options.controlsTimeoutMs ?? 12000)) return { ok: false, message: 'Google’s upload window opened, but its file controls are not accessible to Lazy Fill. Use Browse to attach your file in that window, then Continue. Automation remains paused until the form has an attachment.' }
     // Google replaces the initial empty document during loading or tab changes.
     // Read the frame's current document on every poll instead of keeping the old one.
     const picker = currentDocument(frame)
@@ -137,7 +137,7 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
       const accept = limits.get('selectableMimeTypes') || ''
       const maxSize = Number(limits.get('maxSizeBytesPerItem'))
       const compatible = files.filter(file => acceptsFile(file, accept) && (!input?.accept || acceptsFile(file, input.accept)))
-      if (!compatible.length) return { ok: false, message: `This question needs ${accept || input?.accept || 'a different file type'}. Close the picker, choose a compatible temporary file in FormPass, then Continue.` }
+      if (!compatible.length) return { ok: false, message: `This question needs ${accept || input?.accept || 'a different file type'}. Close the picker, choose a compatible temporary file in Lazy Fill, then Continue.` }
       const metadata = compatible.find(file => !(maxSize > 0) || file.size <= maxSize)
       if (!metadata) return { ok: false, message: 'Your file exceeds this question’s file-size limit. Choose a smaller file before continuing.' }
       const Drag = dropTarget?.ownerDocument.defaultView?.DragEvent
@@ -170,5 +170,5 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
     await pause()
   }
   if (!active()) return { ok: false, cancelled: true }
-  return { ok: false, message: sent ? 'Google has not confirmed the upload yet. Finish or cancel it in the picker before continuing; FormPass will not attach a duplicate.' : 'Google’s upload controls were not available. Upload your file directly in the form, then Continue.' }
+  return { ok: false, message: sent ? 'Google has not confirmed the upload yet. Finish or cancel it in the picker before continuing; Lazy Fill will not attach a duplicate.' : 'Google’s upload controls were not available. Upload your file directly in the form, then Continue.' }
 }

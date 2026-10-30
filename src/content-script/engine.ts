@@ -168,12 +168,12 @@ export class FormEngine {
       if (metadata?.type === 'File upload' || question.querySelector('input[type="file"]') || /\bAdd file\b/i.test(question.textContent || '')) {
         const input = question.querySelector<HTMLInputElement>('input[type="file"]')
         const button = [...question.querySelectorAll<HTMLElement>('button, [role="button"]')].find(button => enabled(button) && visible(button) && (/^add file$/i.test(label(button)) || button.getAttribute('jsname') === 'O5yIud'))
-        add(input || button || question, 'file', [], undefined, 'file', 'Select a temporary file in FormPass, or upload directly in the form.')
+        add(input || button || question, 'file', [], undefined, 'file', 'Select a temporary file in Lazy Fill, or upload directly in the form.')
         const target = targets[targets.length - 1]
         const canAttach = !!target.preview.value && typeof DataTransfer !== 'undefined' && (input ? enabled(input) : !!button)
         if (target.preview.status === 'ready' && !canAttach) {
           target.preview.status = 'manual'
-          target.preview.note = target.preview.value ? 'Upload this file directly in the form, then Continue.' : 'Choose a compatible temporary file in FormPass before continuing.'
+          target.preview.note = target.preview.value ? 'Upload this file directly in the form, then Continue.' : 'Choose a compatible temporary file in Lazy Fill before continuing.'
         }
         continue
       }
@@ -293,7 +293,7 @@ export class FormEngine {
 
   async fill(settings: Settings, values: { id: string; value: string }[], shouldContinue = () => true, progress?: (message: string) => void): Promise<string> {
     if (!isRespondentForm(this.doc, this.href)) throw new Error('Open a Google Form respondent page first.')
-    if (pickerFrames(this.doc).length) throw new Error('Finish or close the open Google upload window, then Continue so FormPass can open the correct question’s picker.')
+    if (pickerFrames(this.doc).length) throw new Error('Finish or close the open Google upload window, then Continue so Lazy Fill can open the correct question’s picker.')
     this.settings = settings
     const targets = this.targets(settings)
     let filled = 0
@@ -390,7 +390,7 @@ export class FormEngine {
       this.doc.body.prepend(this.banner)
     }
     const text = this.doc.createElement('span')
-    text.textContent = `FormPass · ${this.automation?.status === 'running' || this.automation?.status === 'paused' ? this.automation.message : `${this.temporary.size} temporary answer(s). Replace or clear before submitting. Google may autosave.`}`
+    text.textContent = `Lazy Fill · ${this.automation?.status === 'running' || this.automation?.status === 'paused' ? this.automation.message : `${this.temporary.size} temporary answer(s). Replace or clear before submitting. Google may autosave.`}`
     this.banner.replaceChildren(text)
     if (this.automation?.status === 'running' && this.onStop) {
       const stop = this.doc.createElement('button')

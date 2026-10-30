@@ -37,10 +37,10 @@ function Popup() {
   }
 
   async function send(request: Request) {
-    if (tabId.current === null) throw new Error('Open a Google Form, then reopen FormPass.')
+    if (tabId.current === null) throw new Error('Open a Google Form, then reopen Lazy Fill.')
     let result: Response
     try { result = await chrome.tabs.sendMessage(tabId.current, request) as Response }
-    catch { throw new Error('Reload the form after updating FormPass. If it is moving to another section, try again in a moment.') }
+    catch { throw new Error('Reload the form after updating Lazy Fill. If it is moving to another section, try again in a moment.') }
     return accept(result)
   }
 
@@ -61,7 +61,7 @@ function Popup() {
         const result = await chrome.tabs.sendMessage(tab.id, { type: 'SCAN', settings: next }) as Response
         if (!cancelled) accept(result)
       } catch (cause) {
-        if (!cancelled) setError(cause instanceof Error && !/Receiving end|connection/i.test(cause.message) ? cause.message : 'Reload the Google Form after updating FormPass, then reopen the popup.')
+        if (!cancelled) setError(cause instanceof Error && !/Receiving end|connection/i.test(cause.message) ? cause.message : 'Reload the Google Form after updating Lazy Fill, then reopen the popup.')
       } finally { if (!cancelled) setBusy(false) }
     })()
     return () => { cancelled = true }
@@ -78,7 +78,7 @@ function Popup() {
       void chrome.tabs.sendMessage(tabId.current!, { type: 'SCAN', settings }).then((result: Response) => {
         if (!cancelled) { accept(result); failures = 0 }
       }).catch(() => {
-        if (!cancelled && ++failures >= 25) setError('The form is taking a while to load. Reopen FormPass once it finishes.')
+        if (!cancelled && ++failures >= 25) setError('The form is taking a while to load. Reopen Lazy Fill once it finishes.')
       }).finally(() => { pending = false })
     }, 600)
     return () => { cancelled = true; window.clearInterval(timer) }
@@ -123,13 +123,13 @@ function Popup() {
 
   return <main className="popup">
     <aside className="rail" aria-label="Workspace navigation">
-      <span className="rail-mark" aria-hidden="true">f<span>↗</span></span>
+      <span className="rail-mark" aria-hidden="true">lf<span>↗</span></span>
       <a href="#profile" title="Your profile" aria-label="Your profile"><Icon name="user" /></a>
       <a href="#files" title="Temporary files" aria-label="Temporary files"><Icon name="upload" /></a>
       <a href="#questions" title="Questions and options" aria-label="Questions and options"><Icon name="layers" /></a>
       <span className="rail-bottom" title="Stops before submission"><Icon name="shield" /></span>
     </aside>
-    <header><div><h1>FormPass<span className="brand-star">✳</span></h1><p className="eyebrow">YOUR FORM WORKSPACE</p></div><span className="version">v0.3.2</span></header>
+    <header><div><h1>Lazy Fill<span className="brand-star">✳</span></h1><p className="eyebrow">GFORMS AUTOFILL</p></div><span className="version">v0.3.3</span></header>
     <div className="form-title"><span className={`dot ${connected ? 'connected' : ''}`} /><p>{connected ? scan.title || 'Untitled form' : 'Waiting for a Google Form'}</p></div>
     <div className="intro"><h2>A little prep.<br /><span>A lot less typing.</span></h2><p>Preview the next section, at your pace.</p></div>
     {!connected && !busy && !error && <p className="notice">Open a Google Form to begin. You can prepare temporary files here first.</p>}

@@ -8,7 +8,7 @@ async function database(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => request.result.createObjectStore('files', { keyPath: 'id' })
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error || new Error('Could not open temporary file storage.'))
-    request.onblocked = () => reject(new Error('Close other FormPass windows and try again.'))
+    request.onblocked = () => reject(new Error('Close other Lazy Fill windows and try again.'))
   })
 }
 

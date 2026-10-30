@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FormPass",
-  "version": "0.3.2",
+  "name": "Lazy Fill: GForms Autofill",
+  "short_name": "Lazy Fill",
+  "version": "0.3.3",
   "description": "Preview Google Form sections and fill blank fields with temporary answers while you prepare your real response.",
   "permissions": ["activeTab", "storage"],
   "background": { "service_worker": "background.js" },
@@ -13,7 +14,7 @@
     }
   ],
   "action": {
-    "default_title": "FormPass",
+    "default_title": "Lazy Fill: GForms Autofill",
     "default_popup": "popup.html"
   },
   "content_security_policy": {

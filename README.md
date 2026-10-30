@@ -1,8 +1,8 @@
-# FormPass
+# Lazy Fill: GForms Autofill
 
 **Inspect and prepare multi-section Google Forms before finalizing your response.**
 
-FormPass is a Microsoft Edge and Google Chrome extension for reviewing form requirements while your information and documents are still being prepared. It provides question outlines, reusable placeholder values, a local temporary-file library, and automatic navigation through supported sections.
+Lazy Fill is a Microsoft Edge and Google Chrome extension for reviewing form requirements while your information and documents are still being prepared. It provides question outlines, reusable placeholder values, a local temporary-file library, and automatic navigation through supported sections.
 
 Automatic navigation stops before submission and pauses when a required upload or validation issue needs your attention.
 
@@ -27,8 +27,8 @@ Automatic navigation stops before submission and pauses when a required upload o
 ### Build the extension
 
 ```sh
-git clone https://github.com/ralphchr/formpass.git
-cd formpass
+git clone https://github.com/ralphchr/formpass.git lazy-fill
+cd lazy-fill
 npm ci
 npm run build
 ```
@@ -39,15 +39,15 @@ npm run build
 2. Enable **Developer mode**.
 3. Select **Load unpacked** and choose the generated **`dist`** directory.
 4. Open a Google Form respondent link and complete any required sign-in.
-5. Reload the form, then open **FormPass** from the browser's extensions menu.
+5. Reload the form, then open **Lazy Fill** from the browser's extensions menu.
 
 After an update, rebuild the project, reload the extension, and refresh the form tab. Load the `dist` directory rather than the repository root.
 
 ## Usage
 
-1. Enter your placeholder profile in FormPass.
+1. Enter your placeholder profile in Lazy Fill.
 2. Add any files you intend to use under **Temporary files**. Where necessary, assign a file to a specific question.
-3. Select **Run all sections**. FormPass fills supported unanswered fields and advances through the form.
+3. Select **Run all sections**. Lazy Fill fills supported unanswered fields and advances through the form.
 4. If the run pauses, resolve the indicated requirement and select **Continue all sections**.
 5. Review and replace temporary responses and attachments before submitting your final response yourself.
 
@@ -74,13 +74,13 @@ Age and contact fields retain their profile values. Supported numeric contact fi
 
 Select **Upload temporary files** or drag files into the extension. The library preserves their original names, types, and contents and remains available after closing the popup or navigating between sections.
 
-For each upload question, choose a specific file or use **First compatible file**. A compatible library file may be reused across questions. If an explicitly assigned file is removed, FormPass requires another selection rather than silently substituting a different file.
+For each upload question, choose a specific file or use **First compatible file**. A compatible library file may be reused across questions. If an explicitly assigned file is removed, Lazy Fill requires another selection rather than silently substituting a different file.
 
 **Automatic attachment through Google's upload window is experimental and has not been verified against the live upload service.** Opening that window does not confirm an upload. If automatic attachment fails, use **Browse** in Google's window to select the file directly, complete the attachment, and then select **Continue all sections**.
 
-Required uploads block navigation until an attachment is detected. Optional uploads may remain empty. FormPass checks available format and size restrictions and pauses when an upload remains unconfirmed.
+Required uploads block navigation until an attachment is detected. Optional uploads may remain empty. Lazy Fill checks available format and size restrictions and pauses when an upload remains unconfirmed.
 
-Removing a file from the extension library does not remove an existing Google Form attachment or delete a Drive file. FormPass does not generate decoy files.
+Removing a file from the extension library does not remove an existing Google Form attachment or delete a Drive file. Lazy Fill does not generate decoy files.
 
 ## Limitations
 
@@ -94,7 +94,7 @@ Removing a file from the extension library does not remove an existing Google Fo
 
 ## Privacy and permissions
 
-FormPass has no application backend, analytics, or separate account requirement. Selected files remain in extension storage until attached to a form or removed from the library. Google receives files when they are attached through its upload interface.
+Lazy Fill has no application backend, analytics, or separate account requirement. Selected files remain in extension storage until attached to a form or removed from the library. Google receives files when they are attached through its upload interface.
 
 | Access or storage | Purpose |
 | --- | --- |
@@ -139,7 +139,7 @@ manifest.json        Extension manifest
 
 | Issue | Resolution |
 | --- | --- |
-| Popup cannot connect | Reload the extension, refresh the form tab, and reopen FormPass |
+| Popup cannot connect | Reload the extension, refresh the form tab, and reopen Lazy Fill |
 | Form is not detected | Use a respondent `viewform` link, complete sign-in, and wait for the form to load |
 | Required file is missing | Add a compatible file to the library or attach it directly in the form, then Continue |
 | Upload window opens without an attachment | Use Browse in Google's window, complete the upload, then Continue |
