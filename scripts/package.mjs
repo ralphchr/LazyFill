@@ -26,7 +26,7 @@ function icon(size) {
       || (px > .25 && px < .73 && py > .22 && py < .34)
       || (px > .25 && px < .61 && py > .43 && py < .55)
     const offset = y * (size * 4 + 1) + 1 + x * 4
-    pixels.set(foreground ? [218, 244, 155, 255] : [35, 79, 66, 255], offset)
+    pixels.set(foreground ? [208, 195, 226, 255] : [14, 14, 18, 255], offset)
   }
   const header = Buffer.alloc(13)
   header.writeUInt32BE(size, 0)
@@ -47,5 +47,5 @@ for (const size of [16, 32, 48, 128]) {
 manifest.icons = icons
 manifest.action.default_icon = icons
 await writeFile('dist/manifest.json', `${JSON.stringify(manifest, null, 2)}\n`)
-for (const file of [manifest.action.default_popup, ...manifest.content_scripts.flatMap(script => script.js)]) await access(`dist/${file}`)
+for (const file of [manifest.action.default_popup, manifest.background.service_worker, ...manifest.content_scripts.flatMap(script => script.js)]) await access(`dist/${file}`)
 console.log('Packaged FormPass in dist/ — load this folder in Edge or Chrome.')

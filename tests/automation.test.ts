@@ -210,15 +210,16 @@ test('advances through an empty introductory section that exposes form metadata'
   assert.equal(runner.status().pages, 2)
 })
 
-test('an explicit manual opt-out pauses without opening the picker', async t => {
+test('a missing required upload pauses without opening the picker', async t => {
   const { doc, win, runner } = setup(question('Resume *', '<button type="button">Add file</button>') + next)
   t.after(() => win.close())
   let clicked = 0
   doc.querySelectorAll('button').forEach(button => button.addEventListener('click', () => clicked++))
-  runner.start({ ...DEFAULT_SETTINGS, fileMode: 'download', attachFiles: false })
+  runner.start(DEFAULT_SETTINGS)
   await runner.step()
   assert.equal(runner.status().status, 'paused')
-  assert.match(runner.status().message, /Manual download/)
+  assert.match(runner.status().message, /File needed: Resume/)
+  assert.match(doc.querySelector('#formpass-notice')!.textContent, /File needed: Resume/)
   assert.equal(clicked, 0)
 })
 

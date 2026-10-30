@@ -119,7 +119,7 @@ export class FormAutomation {
           if (problem) { this.pause(`Needs your attention: ${problem}. Fix it in the form, then Continue.`); return }
           if (Date.now() - this.state.waitingSince > 8000) {
             const manual = scan.fields.filter(field => field.required && field.status === 'manual').map(field => field.title).slice(0, 2).join(', ')
-            this.pause(manual ? `Complete ${manual} in the form, then Continue. Manual download is available for unsupported uploads.` : 'The form did not advance. Check its validation messages, then Continue.')
+            this.pause(manual ? `Complete ${manual} in the form, then Continue. Add missing temporary files in FormPass or upload directly in the form.` : 'The form did not advance. Check its validation messages, then Continue.')
             return
           }
           this.schedule()
@@ -144,7 +144,7 @@ export class FormAutomation {
       })
       if (!active()) return
       const upload = this.engine.requiredManualUpload()
-      if (upload) { this.pause(`Automatic upload is unavailable or disabled for ${upload}. Enable automatic file uploads in Questions & options, or use Manual download as a fallback.`); return }
+      if (upload) { this.pause(`File needed: ${upload}. Choose a compatible temporary file in FormPass, or upload it directly in the form, then Continue.`); return }
       // Let Google's own change handlers settle before deciding whether to advance.
       await new Promise(resolve => this.doc.defaultView?.setTimeout(resolve, 120))
       if (!active()) return

@@ -17,6 +17,8 @@
     <script type="module">
       import { FormEngine } from '/src/content-script/engine.ts'
       import { FormAutomation } from '/src/content-script/automation.ts'
+      import { readUpload } from '/src/shared/upload-store.ts'
+      import { UPLOAD_CHUNK_BYTES } from '/src/shared/upload-transfer.ts'
       const data = [null, [null, [
         [1, 'Full name', null, 0, [[11, null, 1]]],
         [2, 'Email', null, 0, [[12, null, 1]]],
@@ -48,6 +50,14 @@
       demoUpload.onclick = () => { const file = form.querySelector('input[type="file"]'); if (file) file.disabled = true }
       document.querySelector('section').append(demoUpload)
       globalThis.chrome = {
+        runtime: { sendMessage: async request => {
+          const file = await readUpload(request.id)
+          if (!file) return { ok: false, message: 'Choose your temporary file again.' }
+          const bytes = new Uint8Array(await file.blob.slice(request.offset, request.offset + UPLOAD_CHUNK_BYTES).arrayBuffer())
+          let binary = ''
+          for (const byte of bytes) binary += String.fromCharCode(byte)
+          return { ok: true, data: btoa(binary), size: file.size }
+        } },
         tabs: {
           query: async () => [{ id: 1, url: 'https://docs.google.com/forms/d/e/local-test/viewform' }],
           sendMessage: async (_id, message) => {

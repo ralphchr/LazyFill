@@ -4,6 +4,7 @@ import { JSDOM } from 'jsdom'
 import { googleUploadValue, pickerDocuments, uploadThroughPicker } from '../src/content-script/uploads.ts'
 import { FormEngine } from '../src/content-script/engine.ts'
 import { DEFAULT_SETTINGS } from '../src/shared/types.ts'
+import type { TemporaryFile } from '../src/shared/types.ts'
 
 const url = 'https://docs.google.com/forms/d/e/upload-test/viewform'
 
@@ -13,6 +14,9 @@ function setup() {
   const doc = win.document
   const question = doc.querySelector<HTMLElement>('[role=listitem]')!
   const button = question.querySelector('button')!
+  const userFiles = [new File(['user-selected PDF bytes'], 'my-resume.pdf', { type: 'application/pdf' }), new File(['user-selected PNG bytes'], 'my-photo.png', { type: 'image/png' }), new File(['user-selected notes'], 'notes.txt', { type: 'text/plain' })]
+  const files: TemporaryFile[] = userFiles.map(file => ({ id: file.name, name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }))
+  const loadFile = async (metadata: TemporaryFile) => userFiles.find(file => file.name === metadata.id)!
   for (const name of ['HTMLElement', 'HTMLInputElement', 'HTMLTextAreaElement', 'HTMLSelectElement', 'Event']) Object.defineProperty(globalThis, name, { configurable: true, value: win[name as keyof typeof win] })
   Object.defineProperty(globalThis, 'getComputedStyle', { configurable: true, value: win.getComputedStyle.bind(win) })
   const originalTransfer = Object.getOwnPropertyDescriptor(globalThis, 'DataTransfer')
@@ -26,9 +30,9 @@ function setup() {
     if (originalTransfer) Object.defineProperty(globalThis, 'DataTransfer', originalTransfer)
     else Reflect.deleteProperty(globalThis, 'DataTransfer')
   }
-  function openPicker(native = true, accept = 'application/pdf') {
+  function openPicker(native = true, accept = 'application/pdf', maxSize = 0) {
     const frame = doc.createElement('iframe')
-    frame.src = `https://docs.google.com/picker?hostId=file-upload&selectableMimeTypes=${encodeURIComponent(accept)}`
+    frame.src = `https://docs.google.com/picker?hostId=file-upload&selectableMimeTypes=${encodeURIComponent(accept)}&maxSizeBytesPerItem=${maxSize}`
     doc.body.append(frame)
     const picker = frame.contentDocument!
     picker.open()
@@ -62,7 +66,7 @@ function setup() {
     question.append(remove)
     frame.hidden = true
   }
-  return { win, doc, question, button, cleanup, openPicker, complete }
+  return { win, doc, question, button, cleanup, openPicker, complete, files, loadFile }
 }
 
 test('uploads into the Google picker frame and waits for an actual form attachment', async t => {
@@ -77,10 +81,12 @@ test('uploads into the Google picker frame and waits for an actual form attachme
       app.win.setTimeout(() => { app.complete(frame, selected!.name); confirmed = true }, 25)
     })
   })
-  const result = await uploadThroughPicker({ ...app, kind: 'random', entryIds: ['123'], timeoutMs: 300, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 300, pollMs: 5 })
   assert.equal(result.ok, true, result.message)
   assert.equal(confirmed, true)
   assert.equal(selected!.type, 'application/pdf')
+  assert.equal(selected!.name, 'my-resume.pdf')
+  assert.equal(await selected!.text(), 'user-selected PDF bytes')
   assert.match(googleUploadValue(app.question, ['123']), /drive-file-id/)
 })
 
@@ -99,7 +105,7 @@ test('uses the picker drop zone when no native input exists', async t => {
       app.complete(frame, file.name)
     })
   })
-  const result = await uploadThroughPicker({ ...app, kind: 'random', entryIds: ['123'], timeoutMs: 300, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 300, pollMs: 5 })
   assert.equal(result.ok, true, result.message)
   assert.equal(dropped, true)
   assert.equal(browseClicked, false) // Do not open the operating system file chooser.
@@ -112,7 +118,7 @@ test('does not report success merely because a FileList changed or a picker clos
     const { frame, input } = app.openPicker()
     input!.addEventListener('change', () => { frame.hidden = true })
   })
-  const result = await uploadThroughPicker({ ...app, kind: 'pdf', entryIds: ['123'], timeoutMs: 70, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 70, pollMs: 5 })
   assert.equal(result.ok, false)
   assert.match(result.message!, /not confirmed/)
   assert.equal(googleUploadValue(app.question, ['123']), '[]')
@@ -124,7 +130,7 @@ test('preserves existing uploads and an already-open user picker', async t => {
   app.openPicker()
   let clicked = false
   app.button.addEventListener('click', () => { clicked = true })
-  const result = await uploadThroughPicker({ ...app, kind: 'pdf', entryIds: ['123'], timeoutMs: 70, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 70, pollMs: 5 })
   assert.equal(result.ok, false)
   assert.match(result.message!, /Close the open/)
   assert.equal(clicked, false)
@@ -136,9 +142,9 @@ test('rejects incompatible types and stops without transferring a file', async t
   t.after(app.cleanup)
   let prepared = false
   app.button.addEventListener('click', () => { app.openPicker(true, 'application/pdf') })
-  const result = await uploadThroughPicker({ ...app, kind: 'png', entryIds: ['123'], prepared: () => { prepared = true }, timeoutMs: 70, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, files: app.files.filter(file => file.type === 'image/png'), entryIds: ['123'], prepared: () => { prepared = true }, timeoutMs: 70, pollMs: 5 })
   assert.equal(result.ok, false)
-  assert.match(result.message!, /does not accept/)
+  assert.match(result.message!, /needs application\/pdf/)
   assert.equal(prepared, false)
 })
 
@@ -158,7 +164,7 @@ test('cancels a pending transfer without clicking Select', async t => {
       active = false
     })
   })
-  const result = await uploadThroughPicker({ ...app, kind: 'pdf', entryIds: ['123'], active: () => active, timeoutMs: 70, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], active: () => active, timeoutMs: 70, pollMs: 5 })
   assert.equal(result.cancelled, true)
   assert.equal(selectClicked, false)
 })
@@ -173,8 +179,8 @@ test('engine tracks picker uploads across scans and keeps question identity stab
     const { frame, input, files } = app.openPicker()
     input!.addEventListener('change', () => { app.complete(frame, files()[0].name) })
   })
-  const engine = new FormEngine(app.doc, url, app.win.sessionStorage)
-  const settings = { ...DEFAULT_SETTINGS, fileMode: 'attach' as const, attachFiles: true }
+  const engine = new FormEngine(app.doc, url, app.win.sessionStorage, app.loadFile)
+  const settings = { ...DEFAULT_SETTINGS, uploadFiles: app.files }
   const scan = engine.scan(settings)
   const fingerprint = engine.pageFingerprint()
   assert.equal(scan.fields[0].status, 'ready')
@@ -195,7 +201,7 @@ test('explicit clearing resets a cancelled pending attempt only after the picker
   const key = 'formpass:temporary:/forms/d/e/upload-test'
   const engine = new FormEngine(app.doc, url, app.win.sessionStorage)
   const scan = engine.scan()
-  app.win.sessionStorage.setItem(key, JSON.stringify([{ id: scan.fields[0].id, value: '[]', pending: true, uploadName: 'formpass-blank-123456.pdf' }]))
+  app.win.sessionStorage.setItem(key, JSON.stringify([{ id: scan.fields[0].id, value: '[]', pending: true, uploadName: 'my-resume.pdf' }]))
   const restored = new FormEngine(app.doc, url, app.win.sessionStorage)
   const picker = app.openPicker()
   await assert.rejects(() => restored.clear(), /close Google/)
@@ -229,7 +235,7 @@ test('confirms the uploaded filename before clicking the picker Select button', 
       picker.body.append(select)
     })
   })
-  const result = await uploadThroughPicker({ ...app, kind: 'pdf', entryIds: ['123'], timeoutMs: 500, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 500, pollMs: 5 })
   assert.equal(result.ok, true, result.message)
   assert.equal(selected, true)
 })
@@ -241,13 +247,13 @@ test('reports Google upload rejection instead of counting the file as attached',
     const { picker, input } = app.openPicker()
     input!.addEventListener('change', () => { const error = picker.createElement('p'); error.setAttribute('role', 'alert'); error.textContent = 'This file type is not supported'; picker.body.append(error) })
   })
-  const result = await uploadThroughPicker({ ...app, kind: 'pdf', entryIds: ['123'], timeoutMs: 500, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 500, pollMs: 5 })
   assert.equal(result.ok, false)
   assert.match(result.message!, /not supported/)
   assert.equal(googleUploadValue(app.question, ['123']), '[]')
 })
 
-test('random picker uploads prefer nonempty blank files but retain text-only compatibility', async t => {
+test('uses only compatible user-selected files and preserves their original contents', async t => {
   const app = setup()
   t.after(app.cleanup)
   let accepted = 'image/png,application/pdf,text/plain'
@@ -256,11 +262,26 @@ test('random picker uploads prefer nonempty blank files but retain text-only com
     const { frame, input, files } = app.openPicker(true, accepted)
     input!.addEventListener('change', () => { received = files()[0]; app.complete(frame, received.name) })
   })
-  assert.equal((await uploadThroughPicker({ ...app, kind: 'random', entryIds: ['123'], timeoutMs: 500, pollMs: 5 })).ok, true)
+  assert.equal((await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 500, pollMs: 5 })).ok, true)
   assert.ok(received!.size > 0)
   app.doc.querySelector<HTMLButtonElement>('[aria-label="Remove file"]')!.click()
   accepted = 'text/plain'
-  assert.equal((await uploadThroughPicker({ ...app, kind: 'random', entryIds: ['123'], timeoutMs: 500, pollMs: 5 })).ok, true)
+  assert.equal((await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 500, pollMs: 5 })).ok, true)
   assert.equal(received!.type, 'text/plain')
-  assert.equal(received!.size, 0)
+  assert.equal(await received!.text(), 'user-selected notes')
+})
+
+test('automatic matching skips oversized files and pauses when every matching file is too large', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  app.button.addEventListener('click', () => {
+    const { frame, input, files } = app.openPicker(true, 'application/pdf', 100)
+    input!.addEventListener('change', () => app.complete(frame, files()[0].name))
+  })
+  const oversized = { ...app.files[0], id: 'too-large', name: 'too-large.pdf', size: 101 }
+  assert.equal((await uploadThroughPicker({ ...app, files: [oversized, ...app.files], entryIds: ['123'], timeoutMs: 500, pollMs: 5 })).ok, true)
+  app.doc.querySelector<HTMLButtonElement>('[aria-label="Remove file"]')!.click()
+  const rejected = await uploadThroughPicker({ ...app, files: [oversized], entryIds: ['123'], timeoutMs: 500, pollMs: 5 })
+  assert.equal(rejected.ok, false)
+  assert.match(rejected.message!, /file-size limit/)
 })

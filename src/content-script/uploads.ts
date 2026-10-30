@@ -1,5 +1,5 @@
-import { makeBlankFile, randomChoice } from '../shared/files.ts'
-import type { BlankFileType } from '../shared/types.ts'
+import { acceptsFile } from '../shared/files.ts'
+import type { TemporaryFile } from '../shared/types.ts'
 
 const text = (element: Element) => (element.getAttribute('aria-label') || element.textContent || '').replace(/\s+/g, ' ').trim()
 const enabled = (element: Element) => !element.matches(':disabled, [aria-disabled="true"]')
@@ -25,7 +25,7 @@ export function googleUploadValue(question: HTMLElement, entryIds: string[] = []
   const doc = question.ownerDocument
   const inputs = new Set([...question.querySelectorAll<HTMLInputElement>('input[type="hidden"][name]'), ...doc.querySelectorAll<HTMLInputElement>('input[type="hidden"][name]')].filter(input => question.contains(input) || entryIds.some(id => input.name === `entry.${id}`)))
   const values = [...inputs].filter(input => /^entry\./.test(input.name) && !['', '[]', 'null', '0', '[""]'].includes(input.value.trim())).map(input => `${input.name}:${input.value}`).sort()
-  const names = [...new Set(captions(question).match(/formpass-blank-[a-f0-9]{6}\.(?:png|pdf|txt)\b/g) || [])].sort()
+  const names = [...question.querySelectorAll('[data-file-name], a[download]')].map(element => element.getAttribute('data-file-name') || element.getAttribute('download') || '').filter(Boolean).sort()
   const remove = [...question.querySelectorAll('button, [role="button"]')].filter(button => /^remove(?:\b|$)/i.test(text(button))).length
   // A Drive link in the question's instructions can be a template, not an upload.
   const links = values.length || names.length || remove ? [...question.querySelectorAll<HTMLAnchorElement>('a[href*="/file/d/"], a[href*="open?id="]')].map(link => link.href).sort() : []
@@ -57,7 +57,8 @@ interface UploadOptions {
   doc: Document
   question: HTMLElement
   button: HTMLElement
-  kind: BlankFileType
+  files: TemporaryFile[]
+  loadFile: (file: TemporaryFile) => Promise<File>
   entryIds?: string[]
   active?: () => boolean
   prepared?: (file: File) => void
@@ -68,13 +69,14 @@ interface UploadOptions {
 export interface UploadResult { ok: boolean; cancelled?: boolean; message?: string }
 
 export async function uploadThroughPicker(options: UploadOptions): Promise<UploadResult> {
-  const { doc, question, button, kind, entryIds = [], prepared, progress } = options
+  const { doc, question, button, files, loadFile, entryIds = [], prepared, progress } = options
   const active = options.active || (() => true)
   const pause = () => new Promise(resolve => doc.defaultView!.setTimeout(resolve, options.pollMs ?? 150))
   if (!active()) return { ok: false, cancelled: true }
   if (pickerDocuments(doc).length) return { ok: false, message: 'Close the open Google upload window, then Continue so FormPass can open the correct question’s picker.' }
   const before = googleUploadValue(question, entryIds)
   if (before !== '[]') return { ok: true }
+  if (!files.length) return { ok: false, message: 'Choose a temporary file in FormPass, or upload directly in the form, then Continue.' }
   progress?.('Opening Google’s upload picker…')
   button.click()
   const started = Date.now()
@@ -85,7 +87,7 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
     await pause()
   }
   if (!active()) return { ok: false, cancelled: true }
-  if (!picker) return { ok: false, message: 'Could not access Google’s upload window. Upload a blank download manually, then Continue.' }
+  if (!picker) return { ok: false, message: 'Could not access Google’s upload window. Upload your file directly in the form, then Continue.' }
   const frame = picker.defaultView?.frameElement as HTMLIFrameElement | null
   const limits = frame ? new URL(frame.src, doc.URL).searchParams : new URLSearchParams()
   const accept = limits.get('selectableMimeTypes') || ''
@@ -97,29 +99,30 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
     if (sent && file && questionShowsFile(question, file.name) && googleUploadValue(question, entryIds) !== before && !pickerDocuments(doc).length) return { ok: true }
     const documents = nestedDocuments(picker)
     const alert = documents.flatMap(document => [...document.querySelectorAll('[role="alert"], [role="alertdialog"], [aria-live="assertive"]')]).find(element => visible(element) && /\b(?:failed|error|cannot upload|can.t upload|unsupported|not supported|too large|empty file|file (?:is )?empty|zero.byte)\b/i.test(text(element)))
-    if (alert) return { ok: false, message: `Google could not upload the blank file: ${text(alert).slice(0, 220)}` }
+    if (alert) return { ok: false, message: `Google could not upload your file: ${text(alert).slice(0, 220)}` }
     if (!sent) {
       const uploadTab = [...picker.querySelectorAll<HTMLElement>('[role="tab"]')].find(tab => /^upload$/i.test(text(tab)))
       if (uploadTab && uploadTab.getAttribute('aria-selected') !== 'true') uploadTab.click()
       const input = documents.flatMap(document => [...document.querySelectorAll<HTMLInputElement>('input[type="file"]')]).find(enabled)
       if (input?.files?.length) return { ok: false, message: 'A file is already selected in Google’s picker. Finish or cancel that upload, then Continue.' }
-      let formats = (kind === 'random' ? ['png', 'pdf', 'txt'] as const : [kind]).filter(format => makeBlankFile(format, accept) && (!input?.accept || makeBlankFile(format, input.accept)))
-      // Prefer valid blank documents/images over zero-byte text in Google's uploader.
-      if (kind === 'random' && formats.some(format => format !== 'txt')) formats = formats.filter(format => format !== 'txt')
-      const format = randomChoice(formats)
-      if (!format) return { ok: false, message: 'This question does not accept the selected blank file type. Choose an allowed format under Manual download, then Continue to upload it automatically.' }
-      file = makeBlankFile(format)!
       const maxSize = Number(limits.get('maxSizeBytesPerItem'))
-      if (maxSize > 0 && file.size > maxSize) return { ok: false, message: 'The blank file exceeds this question’s file-size limit.' }
-      const transfer = new DataTransfer()
-      transfer.items.add(file)
-      transfer.effectAllowed = 'copy'
-      transfer.dropEffect = 'copy'
+      const compatible = files.filter(file => acceptsFile(file, accept) && (!input?.accept || acceptsFile(file, input.accept)))
+      if (!compatible.length) return { ok: false, message: `This question needs ${accept || input?.accept || 'a different file type'}. Close the picker, choose a compatible temporary file in FormPass, then Continue.` }
+      const metadata = compatible.find(file => !(maxSize > 0) || file.size <= maxSize)
+      if (!metadata) return { ok: false, message: 'Your file exceeds this question’s file-size limit. Choose a smaller file before continuing.' }
       const browse = picker.getElementById('uploadButtonId')
       const dropTarget = browse?.closest<HTMLElement>('[role="group"]') || browse?.parentElement
       if (!input && !dropTarget) { await pause(); continue }
       const Drag = picker.defaultView!.DragEvent
-      if (!input && !Drag) return { ok: false, message: 'This picker cannot accept an automatic drop. Use the Manual download fallback and select that file in the picker.' }
+      if (!input && !Drag) return { ok: false, message: 'This picker cannot accept an automatic drop. Upload your file directly in the form, then Continue.' }
+      file = await loadFile(metadata)
+      if (!active()) return { ok: false, cancelled: true }
+      if (!pickerDocuments(doc).includes(picker)) return { ok: false, message: 'The upload window closed before transfer. Continue to try again.' }
+      if (input?.files?.length) return { ok: false, message: 'A file was selected while preparing the upload. Finish it in the picker, then Continue.' }
+      const transfer = new DataTransfer()
+      transfer.items.add(file)
+      transfer.effectAllowed = 'copy'
+      transfer.dropEffect = 'copy'
       prepared?.(file)
       progress?.(`Uploading ${file.name}…`)
       if (input) {
@@ -138,5 +141,5 @@ export async function uploadThroughPicker(options: UploadOptions): Promise<Uploa
     await pause()
   }
   if (!active()) return { ok: false, cancelled: true }
-  return { ok: false, message: sent ? 'Google has not confirmed the upload yet. Finish or cancel it in the picker before continuing; FormPass will not attach a duplicate.' : 'Google’s upload controls were not available. Download a blank file and select it manually, then Continue.' }
+  return { ok: false, message: sent ? 'Google has not confirmed the upload yet. Finish or cancel it in the picker before continuing; FormPass will not attach a duplicate.' : 'Google’s upload controls were not available. Upload your file directly in the form, then Continue.' }
 }

@@ -1,7 +1,8 @@
 import { DEFAULT_SETTINGS } from '../shared/types.ts'
-import type { AutomationStatus, BlankFileType, FieldKind, FieldPreview, ScanResult, Settings } from '../shared/types.ts'
+import type { AutomationStatus, FieldKind, FieldPreview, ScanResult, Settings, TemporaryFile } from '../shared/types.ts'
 import { dateParts, placeholder, profileKey } from '../shared/profile.ts'
-import { makeBlankFile, randomChoice } from '../shared/files.ts'
+import { acceptsFile, filesForQuestion, randomChoice } from '../shared/files.ts'
+import { loadTemporaryFile } from '../shared/upload-transfer.ts'
 import { readOutline } from './outline.ts'
 import { validatedPlaceholder } from '../shared/validation.ts'
 import { googleUploadValue, pickerDocuments, questionShowsFile, uploadThroughPicker } from './uploads.ts'
@@ -94,11 +95,13 @@ export class FormEngine {
   private storage?: Storage
   private automation?: AutomationStatus
   private onStop?: () => void
+  private loadFile: (file: TemporaryFile, active: () => boolean) => Promise<File>
 
-  constructor(doc: Document, href: string, storage?: Storage) {
+  constructor(doc: Document, href: string, storage?: Storage, loadFile = loadTemporaryFile) {
     this.doc = doc
     this.href = href
     this.storage = storage
+    this.loadFile = loadFile
     this.storageKey = `formpass:temporary:${new URL(href).pathname.replace(/\/(viewform|formResponse)\/?$/, '')}`
     try {
       const stored: unknown = JSON.parse(storage?.getItem(this.storageKey) || '[]')
@@ -147,7 +150,7 @@ export class FormEngine {
         else if (!blank(target)) preview.status = 'answered'
         else if (!required && !settings.includeOptional) preview.status = 'optional'
         if (options) preview.value = randomChoice(options) || ''
-        else if (kind === 'file') preview.value = settings.blankFileType
+        else if (kind === 'file') preview.value = filesForQuestion(settings, id).find(file => acceptsFile(file, element instanceof HTMLInputElement ? element.accept : ''))?.id || ''
         else if (kind !== 'manual') preview.value = placeholder(title, kind, settings)
         if (kind !== 'manual') {
           const record = this.temporary.get(id)
@@ -165,12 +168,12 @@ export class FormEngine {
       if (metadata?.type === 'File upload' || question.querySelector('input[type="file"]') || /\bAdd file\b/i.test(question.textContent || '')) {
         const input = question.querySelector<HTMLInputElement>('input[type="file"]')
         const button = [...question.querySelectorAll<HTMLElement>('button, [role="button"]')].find(button => enabled(button) && visible(button) && (/^add file$/i.test(label(button)) || button.getAttribute('jsname') === 'O5yIud'))
-        add(input || button || question, 'file', [], undefined, 'file', 'A blank file will be attached using Google’s upload picker.')
+        add(input || button || question, 'file', [], undefined, 'file', 'Select a temporary file in FormPass, or upload directly in the form.')
         const target = targets[targets.length - 1]
-        const canAttach = settings.attachFiles && typeof DataTransfer !== 'undefined' && (input ? enabled(input) && !!makeBlankFile(settings.blankFileType, input.accept) : !!button)
+        const canAttach = !!target.preview.value && typeof DataTransfer !== 'undefined' && (input ? enabled(input) : !!button)
         if (target.preview.status === 'ready' && !canAttach) {
           target.preview.status = 'manual'
-          target.preview.note = 'Click Generate blank file in FormPass, then select the download with Add file → Browse.'
+          target.preview.note = target.preview.value ? 'Upload this file directly in the form, then Continue.' : 'Choose a compatible temporary file in FormPass before continuing.'
         }
         continue
       }
@@ -302,17 +305,20 @@ export class FormEngine {
       const before = read(target)
       if (target.preview.kind === 'file') {
         const pending = this.temporary.get(id)
-        if (pending?.pending) throw new Error('A previous blank upload is unconfirmed. Finish it, or close the picker and use Clear this page to reset the attempt before continuing.')
+        if (pending?.pending) throw new Error('A previous upload is unconfirmed. Finish it, or close the picker and use Clear this page to reset the attempt before continuing.')
         if (!(target.element instanceof HTMLInputElement)) {
-          const result = await uploadThroughPicker({ doc: this.doc, question: target.question, button: target.element, kind: settings.blankFileType, entryIds: target.entryIds, active: shouldContinue, progress,
+          const result = await uploadThroughPicker({ doc: this.doc, question: target.question, button: target.element, files: filesForQuestion(settings, id), loadFile: file => this.loadFile(file, shouldContinue), entryIds: target.entryIds, active: shouldContinue, progress,
             prepared: file => { this.temporary.set(id, { id, value: before, pending: true, uploadName: file.name }); this.persist() },
           })
           if (result.cancelled) break
           if (!result.ok) throw new Error(result.message || 'Google did not confirm the file upload.')
         } else {
           const input = target.element as HTMLInputElement
-          const file = settings.attachFiles && ['random', 'png', 'pdf', 'txt'].includes(value) ? makeBlankFile(value as BlankFileType, input.accept) : null
-          if (!file || typeof DataTransfer === 'undefined') { skipped++; continue }
+          const metadata = filesForQuestion(settings, id).find(file => file.id === value && acceptsFile(file, input.accept))
+          if (!metadata || typeof DataTransfer === 'undefined') { skipped++; continue }
+          const file = await this.loadFile(metadata, shouldContinue)
+          if (!shouldContinue()) break
+          if (!input.isConnected || !blank(target)) { skipped++; continue }
           const transfer = new DataTransfer()
           transfer.items.add(file)
           input.files = transfer.files
@@ -375,12 +381,12 @@ export class FormEngine {
   }
 
   private updateBanner() {
-    if (!this.temporary.size && this.automation?.status !== 'running') { this.banner?.remove(); this.banner = null; return }
+    if (!this.temporary.size && !['running', 'paused'].includes(this.automation?.status || '')) { this.banner?.remove(); this.banner = null; return }
     if (!this.banner?.isConnected) {
       this.banner = this.doc.createElement('aside')
       this.banner.id = 'formpass-notice'
       this.banner.setAttribute('role', 'status')
-      this.banner.style.cssText = 'position:sticky;top:0;z-index:2147483647;padding:12px 20px;background:#172e29;color:#edfff8;font:14px/1.5 system-ui;text-align:center;box-shadow:0 2px 12px #0002'
+      this.banner.style.cssText = 'position:sticky;top:0;z-index:2147483647;padding:12px 20px;background:#101014;color:#e1dbe9;border-bottom:1px solid #37303e;font:14px/1.5 system-ui;text-align:center;box-shadow:0 2px 12px #0003'
       this.doc.body.prepend(this.banner)
     }
     const text = this.doc.createElement('span')
@@ -390,7 +396,7 @@ export class FormEngine {
       const stop = this.doc.createElement('button')
       stop.type = 'button'
       stop.textContent = 'Stop'
-      stop.style.cssText = 'margin-left:14px;padding:4px 12px;border:1px solid #b9d1c3;border-radius:5px;background:transparent;color:inherit;cursor:pointer;font:inherit'
+      stop.style.cssText = 'margin-left:14px;padding:4px 12px;border:1px solid #85718f;border-radius:5px;background:transparent;color:inherit;cursor:pointer;font:inherit'
       stop.addEventListener('click', this.onStop)
       this.banner.append(stop)
     }

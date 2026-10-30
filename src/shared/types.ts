@@ -3,10 +3,8 @@ export interface Settings {
   birthday: string
   age: string
   contact: string
-  blankFileType: BlankFileType
-  fileMode: 'download' | 'attach'
-  fileModeVersion: 1
-  attachFiles: boolean
+  uploadFiles: TemporaryFile[]
+  uploadAssignments: Record<string, string>
   text: string
   paragraph: string
   email: string
@@ -20,10 +18,8 @@ export const DEFAULT_SETTINGS: Settings = {
   birthday: '2000-01-01',
   age: '26',
   contact: '0',
-  blankFileType: 'random',
-  fileMode: 'attach',
-  fileModeVersion: 1,
-  attachFiles: true,
+  uploadFiles: [],
+  uploadAssignments: {},
   text: '.',
   paragraph: '.',
   email: 'preview@gmail.com',
@@ -32,7 +28,13 @@ export const DEFAULT_SETTINGS: Settings = {
   includeOptional: true,
 }
 
-export type BlankFileType = 'random' | 'png' | 'pdf' | 'txt'
+export interface TemporaryFile {
+  id: string
+  name: string
+  type: string
+  size: number
+  lastModified: number
+}
 export type FieldKind = 'text' | 'paragraph' | 'email' | 'phone' | 'number' | 'url' | 'date' | 'file' | 'choice' | 'checkbox' | 'dropdown' | 'manual'
 
 export interface AutomationStatus {
@@ -94,17 +96,13 @@ export interface Response {
 
 export function normalizeSettings(value: unknown): Settings {
   const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-  // Migrate the mistaken manual-first release; only a new explicit opt-out disables automatic uploads.
-  const fileMode = input.fileModeVersion === 1 && input.fileMode === 'download' ? 'download' : 'attach'
   return {
     name: typeof input.name === 'string' ? input.name.slice(0, 200) : DEFAULT_SETTINGS.name,
     birthday: typeof input.birthday === 'string' ? input.birthday.slice(0, 10) : DEFAULT_SETTINGS.birthday,
     age: typeof input.age === 'string' ? input.age.slice(0, 3) : DEFAULT_SETTINGS.age,
     contact: typeof input.contact === 'string' ? input.contact.slice(0, 50) : DEFAULT_SETTINGS.contact,
-    blankFileType: ['random', 'png', 'pdf', 'txt'].includes(String(input.blankFileType)) ? input.blankFileType as BlankFileType : DEFAULT_SETTINGS.blankFileType,
-    fileMode,
-    fileModeVersion: 1,
-    attachFiles: fileMode === 'attach',
+    uploadFiles: Array.isArray(input.uploadFiles) ? input.uploadFiles.filter((file): file is TemporaryFile => !!file && typeof file === 'object' && typeof file.id === 'string' && typeof file.name === 'string' && typeof file.type === 'string' && Number.isSafeInteger(file.size) && file.size >= 0 && typeof file.lastModified === 'number').map(file => ({ id: file.id, name: file.name, type: file.type, size: file.size, lastModified: file.lastModified })) : [],
+    uploadAssignments: input.uploadAssignments && typeof input.uploadAssignments === 'object' && !Array.isArray(input.uploadAssignments) ? Object.fromEntries(Object.entries(input.uploadAssignments).filter(([, id]) => typeof id === 'string')) : {},
     text: typeof input.text === 'string' ? input.text.slice(0, 1000) : DEFAULT_SETTINGS.text,
     paragraph: typeof input.paragraph === 'string' ? input.paragraph.slice(0, 10000) : DEFAULT_SETTINGS.paragraph,
     email: typeof input.email === 'string' ? input.email.slice(0, 1000) : DEFAULT_SETTINGS.email,
