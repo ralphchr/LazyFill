@@ -27,7 +27,7 @@ Automatic navigation stops before submission and pauses when a required upload o
 ### Build the extension
 
 ```sh
-git clone https://github.com/ralphchr/formpass.git lazy-fill
+git clone https://github.com/ralphchr/LazyFill.git lazy-fill
 cd lazy-fill
 npm ci
 npm run build
