@@ -221,3 +221,59 @@ test('an explicit manual opt-out pauses without opening the picker', async t => 
   assert.match(runner.status().message, /Manual download/)
   assert.equal(clicked, 0)
 })
+
+test('Continue recovers from an old loop pause and a manual return to an earlier section', async t => {
+  const { doc, win, runner } = setup(question('Name *', '<input required>', 'a') + next)
+  t.after(() => win.close())
+  let clicks = 0
+  doc.addEventListener('click', event => {
+    if ((event.target as HTMLElement).getAttribute('jsname') !== 'OCpkoe') return
+    clicks++
+    doc.querySelector('form')!.innerHTML = clicks === 1 ? question('Details *', '<input required>', 'b') + next
+      : clicks === 2 ? question('Name *', '<input required>', 'a') + next
+      : '<input type="email" name="emailAddress" required>' + submit
+  })
+  runner.start(DEFAULT_SETTINGS)
+  await runner.step()
+  await runner.step()
+  await runner.step()
+  assert.equal(runner.status().status, 'paused')
+  assert.match(runner.status().message, /repeated section/)
+  runner.start(DEFAULT_SETTINGS)
+  await runner.step()
+  await runner.step()
+  assert.equal(runner.status().status, 'complete', runner.status().message)
+  assert.equal(doc.querySelector('input')!.value, DEFAULT_SETTINGS.email)
+  assert.equal(clicks, 3)
+})
+
+test('hidden headings changing during pending navigation do not cause extra clicks or false section visits', async t => {
+  const { doc, win, runner } = setup(question('Name *') + next)
+  t.after(() => win.close())
+  let clicks = 0
+  doc.querySelector('button')!.addEventListener('click', () => clicks++)
+  runner.start(DEFAULT_SETTINGS)
+  await runner.step()
+  doc.querySelector('form')!.insertAdjacentHTML('beforeend', '<div hidden role="heading">A hidden section</div>')
+  await runner.step()
+  doc.querySelector('[hidden]')!.remove()
+  await runner.step()
+  assert.equal(runner.status().status, 'running')
+  assert.equal(runner.status().pages, 1)
+  assert.equal(clicks, 1)
+})
+
+test('an upgraded running session discards incompatible section fingerprints and fills collected email', async t => {
+  const key = 'formpass:run:/forms/d/e/example'
+  const stored = { [key]: JSON.stringify({ status: 'running', pages: 100, visited: Array(100).fill('old-fingerprint'), waitingFrom: 'old-fingerprint', waitingSince: Date.now(), updatedAt: Date.now() }) }
+  const { doc, win, runner } = setup('<input name="emailAddress" type="email" required>' + submit, stored)
+  t.after(() => win.close())
+  let submits = 0
+  doc.querySelector('button')!.addEventListener('click', () => submits++)
+  runner.resume(DEFAULT_SETTINGS)
+  await runner.step()
+  assert.equal(doc.querySelector('input')!.value, DEFAULT_SETTINGS.email)
+  assert.equal(runner.status().status, 'complete', runner.status().message)
+  assert.equal(runner.status().pages, 1)
+  assert.equal(submits, 0)
+})

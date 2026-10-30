@@ -110,7 +110,7 @@ function Popup() {
   const ready = scan?.fields.filter(field => field.status === 'ready').length || 0
 
   return <main className="popup">
-    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.4</span></header>
+    <header><div className="brand"><span className="mark" aria-hidden="true">F<span>↗</span></span><h1>FormPass</h1></div><span className="version">0.2.5</span></header>
     <div className="form-title"><span className={`dot ${connected ? 'connected' : ''}`} /><p>{connected ? scan.title || 'Untitled form' : 'Google Forms, on your terms'}</p></div>
     <h2>Set once. Fill the rest.</h2>
     <p className="subtitle">Other fields: text <code>.</code> · numbers <code>0</code> · alphanumeric <code>A0</code></p>

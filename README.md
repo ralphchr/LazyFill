@@ -166,6 +166,8 @@ The packaged smoke test checks automatic generation/upload with default settings
 | No section outline | Reload; some forms do not expose readable question data |
 | Next still refuses to continue | Review the form’s validation errors and complete uploads or manual questions |
 | Automatic run pauses | Fix the question in the form, then click Continue all sections |
+| Repeated section warning | Continue starts a fresh pass from the current section. If it returns again, change the answer that routes back to an earlier section |
+| Collected email was skipped in an older version | Reload the extension and form. Both Google's collected-email input and ordinary email questions use your saved Gmail / email placeholder |
 | Google’s picker needs a file | Use Run all sections; it generates and uploads automatically. Manual download is only a fallback if Google blocks that path |
 | An upload window is already open | Finish or close it, then Continue so FormPass opens the correct question’s picker automatically |
 | Upload remains unconfirmed | Finish it manually, or close the picker and Clear this page before retrying |

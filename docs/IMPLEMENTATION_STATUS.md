@@ -1,4 +1,6 @@
-# Implementation status — 0.2.4
+# Implementation status — 0.2.5
+
+Email and continuation fixes: collected-email inputs outside question cards and email-only forms are supported. Gmail labels and email autocomplete use the saved email without applying numeric/alphanumeric text transformations. Visible section identity ignores hidden and external headings, and Continue starts a fresh traversal so a previous loop pause or manual Back action does not permanently block the run. Legacy stored fingerprints are discarded on upgrade; genuine branching loops and the 100-section limit still pause with separate messages.
 
 File workflow: **Run all sections** automatically generates accepted blank PNG/PDF/TXT files in memory, uploads them, confirms attachment, and advances. Automatic generation/upload is on for new installs and upgrades from the mistakenly manual-first 0.2.3 release. A versioned preference preserves new explicit opt-outs. The collapsed **Manual download** panel is only a fallback; default automatic uploading does not require a download action.
 

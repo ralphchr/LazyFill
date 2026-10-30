@@ -118,6 +118,7 @@ form.window.close()
 // Exercise the actual bundle against a separate Google-style picker frame.
 const uploadForm = new JSDOM('<form><div role="listitem" data-item-id="resume"><div role="heading">Resume *</div><button type="button">Add file</button></div><input type="hidden" name="entry.123"><button type="button" jsname="M2UYVd">Submit</button></form>', { url: 'https://docs.google.com/forms/d/e/picker-package-test/viewform', runScripts: 'outside-only' })
 uploadForm.window.TextEncoder = TextEncoder
+uploadForm.window.document.querySelector('form').insertAdjacentHTML('afterbegin', '<label>Email address *<input name="emailAddress" type="email" required></label>')
 uploadForm.window.DataTransfer = class { files = []; items = { add: file => this.files.push(file) } }
 const uploadSchema = uploadForm.window.document.createElement('script')
 uploadSchema.textContent = `var FB_PUBLIC_LOAD_DATA_ = ${JSON.stringify([null, [null, [[1, 'Resume', null, 13, [[123, null, 1]]]]]])};`
@@ -151,8 +152,9 @@ const downloadsBeforeAutomaticUpload = downloadedFiles.length
 await uploadRequest({ type: 'START', settings: stored.settings })
 await until(async () => (await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.automation.status === 'complete', 'Default Run must generate and upload without a separate download action')
 assert.equal(uploadedFile.type, 'application/pdf')
+assert.equal(uploadForm.window.document.querySelector('[name=emailAddress]').value, stored.settings.email)
 assert.equal(downloadedFiles.length, downloadsBeforeAutomaticUpload)
 assert.equal(uploadSubmits, 0)
-assert.equal((await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.temporaryCount, 1)
+assert.equal((await uploadRequest({ type: 'SCAN', settings: stored.settings })).scan.temporaryCount, 2)
 uploadForm.window.close()
-console.log('Packaged extension passed: automatic generation/upload by default, fill/clear, navigation, optional download fallback, and no submission.')
+console.log('Packaged extension passed: collected email, automatic generation/upload by default, fill/clear, navigation, optional download fallback, and no submission.')

@@ -21,6 +21,17 @@ const label = (element: HTMLElement) => clean(element.getAttribute('data-value')
 const selected = (element: HTMLElement) => element instanceof HTMLInputElement
   ? element.checked : element.getAttribute('aria-checked') === 'true'
 const enabled = (element: HTMLElement) => !element.matches(':disabled, [aria-disabled="true"]')
+const collectedEmailSelector = 'form input[type="email"], form input[name="emailAddress"], form input[autocomplete="email"]'
+
+function collectedEmails(doc: Document): HTMLInputElement[] {
+  return [...doc.querySelectorAll<HTMLInputElement>(collectedEmailSelector)]
+    .filter(element => !element.closest('[role="listitem"]') && !element.matches('[type="hidden"], [type="password"]') && visible(element) && enabled(element))
+}
+
+function questions(doc: Document): HTMLElement[] {
+  return [...doc.querySelectorAll<HTMLElement>('form [role="listitem"]')]
+    .filter(question => visible(question) && !question.parentElement?.closest('[role="listitem"]'))
+}
 
 function visible(element: HTMLElement): boolean {
   for (let node: HTMLElement | null = element; node; node = node.parentElement) {
@@ -70,7 +81,7 @@ export function isRespondentForm(doc: Document, href: string): boolean {
   const url = new URL(href)
   return url.protocol === 'https:' && url.hostname === 'docs.google.com'
     && /^\/forms\/(?:u\/\d+\/)?d\/(?:e\/)?[^/]+\/(?:viewform|formResponse)\/?$/.test(url.pathname)
-    && !!doc.querySelector('form') && (!!doc.querySelector('[role="listitem"]') || (!!doc.querySelector('[jsname="OCpkoe"], [jsname="M2UYVd"]') && readOutline(doc).length > 0))
+    && !!doc.querySelector('form') && (!!doc.querySelector('[role="listitem"]') || collectedEmails(doc).length > 0 || (!!doc.querySelector('[jsname="OCpkoe"], [jsname="M2UYVd"]') && readOutline(doc).length > 0))
 }
 
 export class FormEngine {
@@ -108,9 +119,21 @@ export class FormEngine {
   private targets(settings: Settings): Target[] {
     const sections = readOutline(this.doc)
     const outline = sections.flatMap(section => section.questions)
-    const questions = [...this.doc.querySelectorAll<HTMLElement>('[role="listitem"]')].filter(question => visible(question) && !question.parentElement?.closest('[role="listitem"]'))
     const targets: Target[] = []
-    for (const [index, question] of questions.entries()) {
+    // Google's "Collect email addresses" input can live outside the question list.
+    for (const [index, element] of collectedEmails(this.doc).entries()) {
+      const title = clean(element.labels?.[0]?.textContent || element.getAttribute('aria-label')) || 'Email address'
+      const required = element.required || element.getAttribute('aria-required') === 'true' || element.name === 'emailAddress'
+      const id = `collected-email:${hash(element.name || element.id || String(index))}`
+      const record = this.temporary.get(id)
+      if (record && element.value !== record.value) this.temporary.delete(id)
+      targets.push({
+        element, question: element.parentElement || element, controls: [],
+        preview: { id, title, kind: 'email', required, value: settings.email,
+          status: element.value ? 'answered' : required || settings.includeOptional ? 'ready' : 'optional' },
+      })
+    }
+    for (const [index, question] of questions(this.doc).entries()) {
       const title = clean(question.querySelector('[role="heading"]')?.textContent).replace(/\s*\*$/, '') || `Question ${index + 1}`
       const metadata = outline.find(item => clean(item.title) === title)
       const required = !!question.querySelector('[aria-required="true"], [required]') || metadata?.required === true || /\*\s*$/.test(clean(question.querySelector('[role="heading"]')?.textContent))
@@ -197,7 +220,7 @@ export class FormEngine {
       for (const [controlIndex, element] of textControls.entries()) {
         const type = element instanceof HTMLTextAreaElement ? 'paragraph' : element.type
         let kind: FieldKind = type === 'paragraph' ? 'paragraph' : type === 'tel' ? 'phone' : type === 'email' || type === 'number' || type === 'url' || type === 'date' ? type : type === 'text' || type === '' ? 'text' : 'manual'
-        if (kind === 'text' && /\be-?mail\b/i.test(title)) kind = 'email'
+        if (kind === 'text' && (profileKey(title) === 'email' || element.getAttribute('autocomplete') === 'email' || element.getAttribute('name') === 'emailAddress')) kind = 'email'
         else if (kind === 'text' && /^(numeric|decimal)$/.test(element.inputMode)) kind = 'number'
         else if (kind === 'text' && /\b(website|web ?site|url)\b/i.test(title)) kind = 'url'
         const suffix = element.getAttribute('name') || element.getAttribute('aria-label') || String(controlIndex)
@@ -380,7 +403,16 @@ export class FormEngine {
   }
 
   pageFingerprint(): string {
-    return hash(JSON.stringify([this.targets(this.settings).map(target => target.preview.id), [...this.doc.querySelectorAll('[role="heading"]')].map(heading => clean(heading.textContent))]))
+    // Identify visible form content, independent of answer values, picker headings,
+    // hidden sections and changing control/validation markup.
+    const items = questions(this.doc).map((question, index) => {
+      const entries = [...question.querySelectorAll<HTMLElement>('[name^="entry."]')].map(element => element.getAttribute('name')).sort()
+      return question.getAttribute('data-item-id') || (entries.length ? entries : question.getAttribute('data-params')) || `${clean(question.querySelector('[role="heading"]')?.textContent)}:${index}`
+    })
+    const headings = [...this.doc.querySelectorAll<HTMLElement>('form [role="heading"]')]
+      .filter(heading => visible(heading) && !heading.closest('[role="listitem"], [role="dialog"], [role="alert"]'))
+      .map(heading => clean(heading.textContent))
+    return hash(JSON.stringify([items, headings, collectedEmails(this.doc).map(element => element.name || element.id || 'email')]))
   }
 
   navigation(): { next: HTMLElement | null; final: boolean } {

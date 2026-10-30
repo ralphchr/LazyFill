@@ -177,3 +177,63 @@ test('leaves composite inputs manual when no outline identifies their type', asy
   await engine.fill(DEFAULT_SETTINGS, [{ id: scan.fields[0].id, value: 'temporary' }])
   assert.ok([...doc.querySelectorAll('input')].every(input => input.value === ''))
 })
+
+test('fills collected email outside question cards, preserves real email and clears only its placeholder', async t => {
+  const { doc, win, engine } = setup('<label>Email address *<input type="email" name="emailAddress" aria-required="true"></label>' + question('Notes *', '<textarea required></textarea>'))
+  t.after(() => win.close())
+  const settings = { ...DEFAULT_SETTINGS, email: 'tester@gmail.com', includeOptional: false }
+  let scan = engine.scan(settings)
+  assert.deepEqual(scan.fields.map(field => [field.kind, field.required, field.status]), [['email', true, 'ready'], ['paragraph', true, 'ready']])
+  await engine.fill(settings, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  assert.equal(doc.querySelector('input')!.value, settings.email)
+  assert.equal(engine.scan().temporaryCount, 2)
+  await engine.clear()
+  assert.equal(doc.querySelector('input')!.value, '')
+  doc.querySelector('input')!.value = 'real@example.com'
+  scan = engine.scan(settings)
+  assert.equal(scan.fields[0].status, 'answered')
+  await engine.fill(settings, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  await engine.clear()
+  assert.equal(doc.querySelector('input')!.value, 'real@example.com')
+})
+
+test('detects email-only forms and handles autocomplete email without treating it as an ordinary dot field', async t => {
+  const { doc, win, engine } = setup('<input name="emailAddress" type="email" required>')
+  t.after(() => win.close())
+  assert.equal(engine.scan().isGoogleForm, true)
+  const scan = engine.scan()
+  await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  assert.equal(doc.querySelector('input')!.value, DEFAULT_SETTINGS.email)
+  doc.querySelector('form')!.innerHTML = question('Account *', '<input autocomplete="email" required>')
+  const account = engine.scan()
+  assert.equal(account.fields[0].kind, 'email')
+  assert.equal(account.fields[0].value, DEFAULT_SETTINGS.email)
+})
+
+test('section identity ignores hidden headings, external picker headings, answer values and mutable question parameters', async t => {
+  const { doc, win, engine } = setup('<div role="heading">Section one</div>' + question('Name *', '<input name="entry.1" required>'))
+  t.after(() => win.close())
+  doc.querySelector('[role=listitem]')!.removeAttribute('data-item-id')
+  const fingerprint = engine.pageFingerprint()
+  const outside = doc.createElement('div')
+  outside.innerHTML = '<div role="dialog"><div role="heading">Insert a file</div></div>'
+  doc.body.append(outside)
+  doc.querySelector('form')!.insertAdjacentHTML('beforeend', '<div hidden role="heading">Another section</div>')
+  doc.querySelector('[role=listitem]')!.setAttribute('data-params', 'updated state')
+  doc.querySelector('input')!.value = 'An answer'
+  assert.equal(engine.pageFingerprint(), fingerprint)
+  doc.querySelector('input')!.name = 'entry.2'
+  assert.notEqual(engine.pageFingerprint(), fingerprint)
+  doc.querySelector('input')!.name = 'entry.1'
+  doc.querySelector('form > [role=heading]')!.textContent = 'Section two'
+  assert.notEqual(engine.pageFingerprint(), fingerprint)
+})
+
+test('Gmail questions use the saved email even when instructions mention alphanumeric characters', async t => {
+  const { doc, win, engine } = setup(question('Gmail *', '<p>The username contains alphanumeric characters.</p><input required>'))
+  t.after(() => win.close())
+  const scan = engine.scan()
+  assert.equal(scan.fields[0].kind, 'email')
+  await engine.fill(DEFAULT_SETTINGS, scan.fields.map(field => ({ id: field.id, value: field.value })))
+  assert.equal(doc.querySelector('input')!.value, DEFAULT_SETTINGS.email)
+})

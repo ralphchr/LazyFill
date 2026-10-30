@@ -4,12 +4,13 @@ import type { FormEngine } from './engine.ts'
 import { pickerDocuments } from './uploads.ts'
 
 interface Run extends AutomationStatus {
+  fingerprintVersion: 2
   visited: string[]
   waitingFrom: string
   waitingSince: number
   updatedAt: number
 }
-const fresh = (): Run => ({ status: 'idle', pages: 0, message: '', visited: [], waitingFrom: '', waitingSince: 0, updatedAt: Date.now() })
+const fresh = (): Run => ({ status: 'idle', pages: 0, message: '', fingerprintVersion: 2, visited: [], waitingFrom: '', waitingSince: 0, updatedAt: Date.now() })
 const MAX_PAGES = 100
 const MAX_IDLE_MS = 10 * 60 * 1000
 
@@ -33,6 +34,12 @@ export class FormAutomation {
       const value = JSON.parse(storage?.getItem(this.key) || 'null') as Partial<Run> | null
       if (value && ['running', 'paused', 'complete'].includes(value.status || '') && Array.isArray(value.visited) && value.visited.every(item => typeof item === 'string') && typeof value.pages === 'number' && typeof value.updatedAt === 'number') {
         this.state = { ...fresh(), ...value, visited: value.visited.slice(0, MAX_PAGES) } as Run
+        if (value.fingerprintVersion !== 2) {
+          this.state.fingerprintVersion = 2
+          this.state.visited = []
+          this.state.waitingFrom = ''
+          this.state.pages = 0
+        }
       }
     } catch { /* Manual filling remains available when site storage is blocked. */ }
   }
@@ -70,7 +77,9 @@ export class FormAutomation {
   start(settings: Settings): AutomationStatus {
     if (this.state.status === 'running') return this.status()
     if (pickerDocuments(this.doc).length) { this.pause('Finish or close the open Google upload window, then Continue.'); return this.status() }
-    if (this.state.status !== 'paused') this.state = fresh()
+    // Continue is a new traversal from the user's current section. Keeping the
+    // previous history traps a paused run when the user goes Back or fixes a branch.
+    this.state = fresh()
     this.settings = settings
     this.generation++
     this.state.status = 'running'
@@ -110,7 +119,7 @@ export class FormAutomation {
           if (problem) { this.pause(`Needs your attention: ${problem}. Fix it in the form, then Continue.`); return }
           if (Date.now() - this.state.waitingSince > 8000) {
             const manual = scan.fields.filter(field => field.required && field.status === 'manual').map(field => field.title).slice(0, 2).join(', ')
-            this.pause(manual ? `Complete ${manual} in the form, then Continue. Use Generate blank file for temporary uploads.` : 'The form did not advance. Check its validation messages, then Continue.')
+            this.pause(manual ? `Complete ${manual} in the form, then Continue. Manual download is available for unsupported uploads.` : 'The form did not advance. Check its validation messages, then Continue.')
             return
           }
           this.schedule()
@@ -119,8 +128,12 @@ export class FormAutomation {
         this.state.visited.push(this.state.waitingFrom)
         this.state.waitingFrom = ''
       }
-      if (this.state.visited.includes(fingerprint) || this.state.visited.length >= MAX_PAGES) {
-        this.pause('Stopped at a repeated section or navigation limit. Check the form’s branching choices.')
+      if (this.state.visited.includes(fingerprint)) {
+        this.pause('The form returned to a repeated section in this run. Change the branching answer, then Continue to start a fresh pass from here.')
+        return
+      }
+      if (this.state.visited.length >= MAX_PAGES) {
+        this.pause(`Reached the ${MAX_PAGES}-section navigation limit. Continue to start a fresh pass from this section.`)
         return
       }
       this.state.pages = this.state.visited.length + 1

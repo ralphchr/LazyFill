@@ -53,7 +53,7 @@ export function characterRule(hints: InputHints): CharacterRule | null {
 
 export function validatedPlaceholder(title: string, kind: FieldKind, settings: Settings, hints: InputHints): string {
   const original = placeholder(title, kind, settings)
-  if (kind === 'date') return original
+  if (kind === 'date' || kind === 'email') return original
   const rule = characterRule(hints)
   if (!rule) return original
   const key = profileKey(title) || (kind === 'phone' ? 'contact' : null)
