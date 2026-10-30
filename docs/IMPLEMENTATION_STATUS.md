@@ -1,6 +1,6 @@
-# Implementation status — 0.3.0
+# Implementation status — 0.3.1
 
-The popup uses a black dashboard design with muted violet accents, compact profile fields, a visible temporary-file library, per-question file selectors, and a persistent Run/Continue/Stop action. Page tools and section outlines live inside Questions & options. No decoy generator, file-type randomizer, download fallback, or automatic generated-file preference remains.
+The popup uses a soft ivory dashboard design with muted green accents, compact profile fields, a visible temporary-file library, per-question file selectors, and a persistent Run/Continue/Stop action. The form banner and extension icons use the same light palette. Page tools and section outlines live inside Questions & options. No decoy generator, file-type randomizer, download fallback, or automatic generated-file preference remains.
 
 Files are explicitly selected or dropped by the user. IndexedDB in the extension stores the original Blob and metadata. A small service worker reads 512 KiB chunks through authenticated extension messages; the content script reconstructs the original file without changing its bytes, name, or type. Files survive popup closure and section navigation. Removing a library file does not delete a Google attachment or Drive file. No new permissions are required.
 

@@ -26,7 +26,7 @@ function icon(size) {
       || (px > .25 && px < .73 && py > .22 && py < .34)
       || (px > .25 && px < .61 && py > .43 && py < .55)
     const offset = y * (size * 4 + 1) + 1 + x * 4
-    pixels.set(foreground ? [208, 195, 226, 255] : [14, 14, 18, 255], offset)
+    pixels.set(foreground ? [53, 95, 67, 255] : [246, 245, 239, 255], offset)
   }
   const header = Buffer.alloc(13)
   header.writeUInt32BE(size, 0)

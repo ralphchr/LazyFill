@@ -6,10 +6,10 @@
 
 Set your common placeholders once. Let FormPass fill the remaining sections and stop before Submit.
 
-![Manifest V3](https://img.shields.io/badge/Manifest-V3-19171e?style=flat-square)
-![React](https://img.shields.io/badge/React-19-19171e?style=flat-square)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-19171e?style=flat-square)
-![Edge + Chrome](https://img.shields.io/badge/Edge_%2B_Chrome-supported-bdb0d1?style=flat-square&labelColor=19171e)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-355f43?style=flat-square)
+![React](https://img.shields.io/badge/React-19-355f43?style=flat-square)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-355f43?style=flat-square)
+![Edge + Chrome](https://img.shields.io/badge/Edge_%2B_Chrome-supported-bbccaa?style=flat-square&labelColor=355f43)
 
 [Get started](#get-started) · [How it works](#how-it-works) · [Supported questions](#supported-questions) · [Development](#development)
 
@@ -29,7 +29,7 @@ You open an application form. The first section wants your final details and a P
 - **Run all remaining sections:** fill, click Next, and repeat—even when the popup closes or Google reloads the page. Stop at any time from the popup or the form banner.
 - **Bring your temporary files:** choose files from your device inside the extension. FormPass uses your original files for compatible upload questions, or a specific file you assign to a question.
 - **Pause for missing uploads:** required files block Next until an attachment is confirmed. Choose the missing file in FormPass, or upload directly in the form, then Continue.
-- **A quieter workspace:** a black dashboard with subtle violet accents, compact profile fields, a visible file library, and secondary tools inside Questions & options.
+- **A quieter workspace:** a soft ivory dashboard with muted green accents, compact profile fields, a visible file library, and secondary tools inside Questions & options.
 - **Read ahead and clean up:** inspect available questions without uploads, or clear unchanged placeholders on the current page.
 
 ### Get started
@@ -142,7 +142,7 @@ npm audit         # Dependency audit
 
 ```text
 src/
-  popup/             Black workspace, profile, file library, Run/Stop, outline
+  popup/             Light workspace, profile, file library, Run/Stop, outline
   content-script/    Scanning, filling, tracking, automatic navigation, outline
   shared/            Profile matching, file storage, chunk transfer, file matching
   background.ts      Selected-file bridge between local storage and the form

@@ -386,7 +386,7 @@ export class FormEngine {
       this.banner = this.doc.createElement('aside')
       this.banner.id = 'formpass-notice'
       this.banner.setAttribute('role', 'status')
-      this.banner.style.cssText = 'position:sticky;top:0;z-index:2147483647;padding:12px 20px;background:#101014;color:#e1dbe9;border-bottom:1px solid #37303e;font:14px/1.5 system-ui;text-align:center;box-shadow:0 2px 12px #0003'
+      this.banner.style.cssText = 'position:sticky;top:0;z-index:2147483647;padding:12px 20px;background:#f2f5e9;color:#2f503a;border-bottom:1px solid #d9e1cf;font:14px/1.5 system-ui;text-align:center;box-shadow:0 2px 12px #283c2410'
       this.doc.body.prepend(this.banner)
     }
     const text = this.doc.createElement('span')
@@ -396,7 +396,7 @@ export class FormEngine {
       const stop = this.doc.createElement('button')
       stop.type = 'button'
       stop.textContent = 'Stop'
-      stop.style.cssText = 'margin-left:14px;padding:4px 12px;border:1px solid #85718f;border-radius:5px;background:transparent;color:inherit;cursor:pointer;font:inherit'
+      stop.style.cssText = 'margin-left:14px;padding:4px 12px;border:1px solid #91a584;border-radius:5px;background:#fffefb;color:inherit;cursor:pointer;font:inherit'
       stop.addEventListener('click', this.onStop)
       this.banner.append(stop)
     }
