@@ -129,7 +129,7 @@ function Popup() {
       <a href="#questions" title="Questions and options" aria-label="Questions and options"><Icon name="layers" /></a>
       <span className="rail-bottom" title="Stops before submission"><Icon name="shield" /></span>
     </aside>
-    <header><div><h1>FormPass<span className="brand-star">✳</span></h1><p className="eyebrow">YOUR FORM WORKSPACE</p></div><span className="version">v0.3.1</span></header>
+    <header><div><h1>FormPass<span className="brand-star">✳</span></h1><p className="eyebrow">YOUR FORM WORKSPACE</p></div><span className="version">v0.3.2</span></header>
     <div className="form-title"><span className={`dot ${connected ? 'connected' : ''}`} /><p>{connected ? scan.title || 'Untitled form' : 'Waiting for a Google Form'}</p></div>
     <div className="intro"><h2>A little prep.<br /><span>A lot less typing.</span></h2><p>Preview the next section, at your pace.</p></div>
     {!connected && !busy && !error && <p className="notice">Open a Google Form to begin. You can prepare temporary files here first.</p>}

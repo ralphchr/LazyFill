@@ -1,10 +1,12 @@
-# Implementation status — 0.3.1
+# Implementation status — 0.3.2
 
 The popup uses a soft ivory dashboard design with muted green accents, compact profile fields, a visible temporary-file library, per-question file selectors, and a persistent Run/Continue/Stop action. The form banner and extension icons use the same light palette. Page tools and section outlines live inside Questions & options. No decoy generator, file-type randomizer, download fallback, or automatic generated-file preference remains.
 
 Files are explicitly selected or dropped by the user. IndexedDB in the extension stores the original Blob and metadata. A small service worker reads 512 KiB chunks through authenticated extension messages; the content script reconstructs the original file without changing its bytes, name, or type. Files survive popup closure and section navigation. Removing a library file does not delete a Google attachment or Drive file. No new permissions are required.
 
 Automatic attachment uses compatible library files or an explicit per-question assignment. Native inputs use DataTransfer; the same-origin Google picker path uses its native input or upload drop zone, optionally confirms Select, and waits for the original filename, changed attachment evidence, and picker closure. Existing uploads, instruction/template links, cancellation, rejection, and uncertain attempts are handled conservatively.
+
+Picker loading: the parent tracks the visible iframe independently of document access and re-reads its active document on each poll, including after Upload tab changes. This fixes watching a stale empty document after navigation. Visible inaccessible frames block new attempts and cannot be mistaken for closed pickers. Distinct progress messages cover opening, controls, local preparation, transfer, and actual Google confirmation. Controls time out with a manual Browse instruction; this fix does not establish compatibility with Google's live upload service.
 
 Required empty uploads pause the run before Next. Continue cannot pass the gate without an attachment; the user may add a library file or upload directly in the form. Optional uploads may remain empty. Unsupported or unconfirmed picker variants pause and require manual attachment. Selecting a library file alone is not counted as a successful Google upload.
 

@@ -5,7 +5,7 @@ import { acceptsFile, filesForQuestion, randomChoice } from '../shared/files.ts'
 import { loadTemporaryFile } from '../shared/upload-transfer.ts'
 import { readOutline } from './outline.ts'
 import { validatedPlaceholder } from '../shared/validation.ts'
-import { googleUploadValue, pickerDocuments, questionShowsFile, uploadThroughPicker } from './uploads.ts'
+import { googleUploadValue, pickerFrames, questionShowsFile, uploadThroughPicker } from './uploads.ts'
 
 type TextControl = HTMLInputElement | HTMLTextAreaElement
 interface Target {
@@ -293,7 +293,7 @@ export class FormEngine {
 
   async fill(settings: Settings, values: { id: string; value: string }[], shouldContinue = () => true, progress?: (message: string) => void): Promise<string> {
     if (!isRespondentForm(this.doc, this.href)) throw new Error('Open a Google Form respondent page first.')
-    if (pickerDocuments(this.doc).length) throw new Error('Finish or close the open Google upload window, then Continue so FormPass can open the correct question’s picker.')
+    if (pickerFrames(this.doc).length) throw new Error('Finish or close the open Google upload window, then Continue so FormPass can open the correct question’s picker.')
     this.settings = settings
     const targets = this.targets(settings)
     let filled = 0
@@ -342,19 +342,19 @@ export class FormEngine {
   }
 
   async clear(): Promise<string> {
-    if (pickerDocuments(this.doc).length) throw new Error('Finish or close Google’s upload window before clearing temporary answers.')
+    if (pickerFrames(this.doc).length) throw new Error('Finish or close Google’s upload window before clearing temporary answers.')
     const targets = this.targets(this.settings)
     let cleared = 0
     for (const target of targets) {
       const record = this.temporary.get(target.preview.id)
       if (!record || read(target) !== record.value) continue
       if (record.pending) {
-        if (!pickerDocuments(this.doc).length && blank(target)) { this.temporary.delete(record.id); cleared++ }
+        if (!pickerFrames(this.doc).length && blank(target)) { this.temporary.delete(record.id); cleared++ }
         continue
       }
       const kind = target.preview.kind
       if (kind === 'file' && !(target.element instanceof HTMLInputElement)) {
-        if (pickerDocuments(this.doc).length) continue
+        if (pickerFrames(this.doc).length) continue
         const remove = [...target.question.querySelectorAll<HTMLElement>('button, [role="button"]')].find(button => /^remove(?:\b|$)/i.test(label(button)))
         remove?.click()
       } else if (kind === 'checkbox') target.controls.filter(selected).forEach(control => control.click())

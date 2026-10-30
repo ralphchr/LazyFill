@@ -81,6 +81,8 @@ The runner starts from the current section and follows the route chosen by exist
 
 Close an already-open picker before starting automatic attachment. If a picker cannot be accessed, upload your selected file directly in the form. An unconfirmed attempt is never retried blindly: finish it, or close the picker and use **Clear this page** to reset it before retrying.
 
+**Opening the upload window is not an upload confirmation.** The banner reports opening, waiting for Google's controls, preparing your selected file, passing it to Google, and waiting for attachment confirmation as separate stages. Version 0.3.2 fixes a loading bug where the picker replaced its initial document while FormPass kept watching the empty page. Inaccessible or unrecognized picker variants still need a manual Browse upload; live Google upload compatibility is not guaranteed by the simulated tests.
+
 The extension does not generate decoy files. It keeps your selected files' names, types, and contents unchanged. **Remove** deletes a file from the local library; it does not remove a file already attached to a form or stored in Google Drive. Clearing a form attachment does not delete its Drive file. Browser storage limits and Google’s restrictions still apply.
 
 ### Supported questions
@@ -170,6 +172,7 @@ The packaged smoke test exercises the actual popup, worker, and content bundles 
 | A required file is missing | Upload a compatible file into the Temporary files panel, or directly in the form, then Continue |
 | The wrong library file is selected | Use the file selector under that question to assign the exact file you want |
 | Google rejects a file type or size | Close the picker and choose a compatible, smaller file before continuing |
+| Upload window opens but no file attaches | Update/reload the extension and form. If the banner says the controls are inaccessible, use Browse in Google's window to attach your file, then Continue |
 | An upload window is already open | Finish or close it, then Continue so FormPass opens the correct question’s picker automatically |
 | Upload remains unconfirmed | Finish it manually, or close the picker and Clear this page before retrying |
 | Temporary count remains | Return to earlier sections, or manually clear the remaining selections |

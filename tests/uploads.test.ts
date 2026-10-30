@@ -81,7 +81,7 @@ test('uploads into the Google picker frame and waits for an actual form attachme
       app.win.setTimeout(() => { app.complete(frame, selected!.name); confirmed = true }, 25)
     })
   })
-  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 300, pollMs: 5 })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 1500, pollMs: 5 })
   assert.equal(result.ok, true, result.message)
   assert.equal(confirmed, true)
   assert.equal(selected!.type, 'application/pdf')
@@ -284,4 +284,116 @@ test('automatic matching skips oversized files and pauses when every matching fi
   const rejected = await uploadThroughPicker({ ...app, files: [oversized], entryIds: ['123'], timeoutMs: 500, pollMs: 5 })
   assert.equal(rejected.ok, false)
   assert.match(rejected.message!, /file-size limit/)
+})
+
+test('follows the picker document when its initial empty page is replaced during loading', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  const loaded = new JSDOM('<input type="file" accept="application/pdf">', { url: 'https://docs.google.com/picker?hostId=file-upload' })
+  t.after(() => loaded.window.close())
+  const messages: string[] = []
+  let transferred: File | undefined
+  app.button.addEventListener('click', () => {
+    const { frame, picker } = app.openPicker(false)
+    picker.body.replaceChildren() // Initial iframe document exists before Google's page arrives.
+    let currentDocument = picker
+    Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => currentDocument })
+    const input = loaded.window.document.querySelector('input')!
+    let files: File[] = []
+    Object.defineProperty(input, 'files', { get: () => files, set: value => { files = [...value] } })
+    input.addEventListener('change', () => { transferred = files[0]; app.complete(frame, transferred.name) })
+    app.win.setTimeout(() => { currentDocument = loaded.window.document }, 25)
+  })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 400, pollMs: 5, progress: message => messages.push(message) })
+  assert.equal(result.ok, true, result.message)
+  assert.equal(transferred!.name, 'my-resume.pdf')
+  assert.equal(await transferred!.text(), 'user-selected PDF bytes')
+  assert.ok(messages.some(message => /Waiting for Google’s upload controls/.test(message)))
+  assert.ok(messages.some(message => /Preparing/.test(message)))
+})
+
+test('does not open another question picker when an existing visible picker is inaccessible', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  const { frame } = app.openPicker()
+  Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => null })
+  let clicked = false
+  app.button.addEventListener('click', () => { clicked = true })
+  const result = await uploadThroughPicker({ ...app, timeoutMs: 70, pollMs: 5 })
+  assert.equal(result.ok, false)
+  assert.equal(clicked, false)
+  assert.match(result.message!, /Close the open/)
+})
+
+test('a visible picker becoming inaccessible is not mistaken for a confirmed closed picker', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  app.button.addEventListener('click', () => {
+    const { frame, input, files } = app.openPicker()
+    input!.addEventListener('change', () => {
+      app.complete(frame, files()[0].name)
+      frame.hidden = false // Attachment evidence appeared, but Google's dialog is still open.
+      Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => null })
+    })
+  })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 100, pollMs: 5 })
+  assert.equal(result.ok, false)
+  assert.match(result.message!, /not confirmed/)
+})
+
+test('switching the Upload tab can replace its document before any file is transferred', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  const loaded = new JSDOM('<input type="file" accept="application/pdf">', { url: 'https://docs.google.com/picker?hostId=file-upload' })
+  t.after(() => loaded.window.close())
+  let tabClicks = 0
+  app.button.addEventListener('click', () => {
+    const { frame, picker } = app.openPicker(false)
+    let current = picker
+    Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => current })
+    const tab = picker.querySelector('[role=tab]')!
+    tab.setAttribute('aria-selected', 'false')
+    tab.addEventListener('click', () => { tabClicks++; current = loaded.window.document })
+    const input = loaded.window.document.querySelector('input')!
+    let files: File[] = []
+    Object.defineProperty(input, 'files', { get: () => files, set: value => { files = [...value] } })
+    input.addEventListener('change', () => app.complete(frame, files[0].name))
+  })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 400, pollMs: 5 })
+  assert.equal(result.ok, true, result.message)
+  assert.equal(tabClicks, 1)
+})
+
+test('a picker with no accessible upload controls pauses without claiming a file was sent', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  const messages: string[] = []
+  let reads = 0
+  app.button.addEventListener('click', () => {
+    const { frame } = app.openPicker()
+    Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => null })
+  })
+  const result = await uploadThroughPicker({ ...app, timeoutMs: 300, controlsTimeoutMs: 30, pollMs: 5, loadFile: async file => { reads++; return app.loadFile(file) }, progress: message => messages.push(message) })
+  assert.equal(result.ok, false)
+  assert.match(result.message!, /window opened, but its file controls are not accessible/)
+  assert.equal(reads, 0)
+  assert.ok(messages.some(message => /Waiting for Google’s upload controls/.test(message)))
+  assert.ok(messages.every(message => !/Passing|confirm the attachment/.test(message)))
+})
+
+test('waits for the form attachment if Google closes the picker before rendering it', async t => {
+  const app = setup()
+  t.after(app.cleanup)
+  let sends = 0
+  app.button.addEventListener('click', () => {
+    const { frame, input, files } = app.openPicker()
+    input!.addEventListener('change', () => {
+      sends++
+      frame.hidden = true
+      app.win.setTimeout(() => app.complete(frame, files()[0].name), 30)
+    })
+  })
+  const result = await uploadThroughPicker({ ...app, entryIds: ['123'], timeoutMs: 1500, pollMs: 5 })
+  assert.equal(result.ok, true, result.message)
+  assert.equal(sends, 1)
 })

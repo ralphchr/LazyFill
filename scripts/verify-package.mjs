@@ -103,6 +103,7 @@ const schema = uploadDoc.createElement('script')
 schema.textContent = `var FB_PUBLIC_LOAD_DATA_ = ${JSON.stringify([null, [null, [[1, 'Resume', null, 13, [[123, null, 1]]]]]])};`
 uploadDoc.body.append(schema)
 let uploadedFile
+const pickerWindows = []
 let confirmed = false
 let uploadNext = 0
 uploadDoc.addEventListener('click', event => { if (event.target.getAttribute('jsname') === 'M2UYVd') submits++ })
@@ -115,8 +116,14 @@ uploadDoc.querySelector('[role=listitem] button').addEventListener('click', () =
   const frame = uploadDoc.createElement('iframe')
   frame.src = 'https://docs.google.com/picker?hostId=file-upload&selectableMimeTypes=application%2Fpdf'
   uploadDoc.body.append(frame)
-  const picker = frame.contentDocument
-  picker.open(); picker.write('<html><body><input type="file" accept="application/pdf"></body></html>'); picker.close()
+  const loadingDocument = frame.contentDocument
+  loadingDocument.open(); loadingDocument.write('<html><body></body></html>'); loadingDocument.close()
+  const ready = new JSDOM('<input type="file" accept="application/pdf">', { url: frame.src })
+  pickerWindows.push(ready.window)
+  const picker = ready.window.document
+  let activeDocument = loadingDocument
+  Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => activeDocument })
+  upload.dom.window.setTimeout(() => { activeDocument = picker }, 40)
   const input = picker.querySelector('input')
   let files = []
   Object.defineProperty(input, 'files', { get: () => files, set: value => { files = [...value] } })
@@ -173,5 +180,5 @@ cleanup.window.close()
 const independent = openPopup(upload, 'https://example.com')
 await until(() => independent.window.document.querySelector('.file-input')?.disabled === false, 'Files can be prepared on non-form tabs')
 assert.equal(independent.window.document.querySelector('.file-list'), null)
-independent.window.close(); upload.dom.window.close(); background.window.close()
+independent.window.close(); pickerWindows.forEach(window => window.close()); upload.dom.window.close(); background.window.close()
 console.log('Packaged extension passed: selected-file persistence, exact multi-chunk transfer through the worker/picker, missing-file gates, continuation, existing answers, and no submission.')

@@ -1,7 +1,7 @@
 import type { AutomationStatus, Settings } from '../shared/types.ts'
 import { DEFAULT_SETTINGS } from '../shared/types.ts'
 import type { FormEngine } from './engine.ts'
-import { pickerDocuments } from './uploads.ts'
+import { pickerFrames } from './uploads.ts'
 
 interface Run extends AutomationStatus {
   fingerprintVersion: 2
@@ -76,7 +76,7 @@ export class FormAutomation {
 
   start(settings: Settings): AutomationStatus {
     if (this.state.status === 'running') return this.status()
-    if (pickerDocuments(this.doc).length) { this.pause('Finish or close the open Google upload window, then Continue.'); return this.status() }
+    if (pickerFrames(this.doc).length) { this.pause('Finish or close the open Google upload window, then Continue.'); return this.status() }
     // Continue is a new traversal from the user's current section. Keeping the
     // previous history traps a paused run when the user goes Back or fixes a branch.
     this.state = fresh()
